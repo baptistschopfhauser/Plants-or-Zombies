@@ -7,28 +7,46 @@ const PLANT_TYPES = {
     sunEvery: 14, sunAmount: 25,
     body: '#ffd23f', dark: '#e0a91e', leaf: '#3fae4a'
   },
+  sunshroom: {
+    key: 'sunshroom', name: 'Sun Shroom', cost: 50, cd: 7, hp: 300,
+    desc: 'Grows after 25s: small sun at first, then full sun',
+    sunEvery: 20, sunAmount: 15, growTime: 25, bigEvery: 14, bigAmount: 25,
+    body: '#ffd23f', dark: '#e0a91e', leaf: '#3fae4a'
+  },
   spitter: {
     key: 'spitter', name: 'Seed Spitter', cost: 100, cd: 7, hp: 300,
-    desc: 'Fires seeds down its lane',
-    dmg: 20, rate: 1.4, burst: 1,
+    desc: 'Fires seeds down its lane. Levels up with kills.',
+    dmg: 20, rate: 1.4, burst: 1, canLevel: true,
     body: '#57c84d', dark: '#2f8f2a', leaf: '#3fae4a'
+  },
+  puff: {
+    key: 'puff', name: 'Puff Spitter', cost: 75, cd: 7, hp: 300,
+    desc: 'Cheap short-range spitter (3 tiles). Levels up with kills.',
+    dmg: 20, rate: 1.4, burst: 1, canLevel: true, range: 3,
+    body: '#9adf6a', dark: '#4a9a3a', leaf: '#3fae4a'
   },
   doublespitter: {
     key: 'doublespitter', name: 'Double Spitter', cost: 200, cd: 10, hp: 300,
-    desc: 'Fires two seeds per volley',
-    dmg: 20, rate: 1.5, burst: 2,
+    desc: 'Fires two seeds per volley. Levels up with kills.',
+    dmg: 20, rate: 1.5, burst: 2, canLevel: true,
     body: '#6fd35f', dark: '#2f8f2a', leaf: '#3fae4a'
+  },
+  splitspitter: {
+    key: 'splitspitter', name: 'Split Spitter', cost: 175, cd: 10, hp: 300,
+    desc: 'Fires seeds forward AND backward. Levels up with kills.',
+    dmg: 20, rate: 1.4, burst: 1, canLevel: true, split: true,
+    body: '#4db8a8', dark: '#2a7a6c', leaf: '#3fae4a'
   },
   fern: {
     key: 'fern', name: 'Frost Fern', cost: 175, cd: 15, hp: 300,
-    desc: 'Chilling seeds slow zombies by 50%',
-    dmg: 20, rate: 1.4, burst: 1, slow: 5,
+    desc: 'Chilling seeds slow zombies by 50%. Levels up with kills.',
+    dmg: 20, rate: 1.4, burst: 1, slow: 5, canLevel: true,
     body: '#7fd4ff', dark: '#3aa3d8', leaf: '#bfeaff'
   },
   melonlob: {
     key: 'melonlob', name: 'Melon Lob', cost: 300, cd: 20, hp: 300,
-    desc: 'Lobs melons: 80 dmg + 40 splash in 3x3',
-    dmg: 80, splash: 40, rate: 3.0, arc: true,
+    desc: 'Lobs melons: 80 dmg + 40 splash in 3x3. Levels up with kills.',
+    dmg: 80, splash: 40, rate: 3.0, arc: true, canLevel: true,
     body: '#4da83e', dark: '#2e6b26', leaf: '#3fae4a'
   },
   acorn: {
@@ -60,6 +78,12 @@ const PLANT_TYPES = {
     armDelay: 1.5, dmg: 1800, lane: true,
     body: '#e8862e', dark: '#a33b1a', leaf: '#3fae4a'
   },
+  blover: {
+    key: 'blover', name: 'Blover', cost: 100, cd: 15, hp: 300,
+    desc: 'Every 12s gusts its lane, pushing zombies back',
+    blowEvery: 12, blowDist: 230, blowSlow: 2,
+    body: '#bfe8ff', dark: '#6ab0d8', leaf: '#3fae4a'
+  },
   onion: {
     key: 'onion', name: 'Diverter Onion', cost: 100, cd: 20, hp: 300,
     desc: 'When eaten, sends the zombie to another lane',
@@ -75,8 +99,9 @@ const PLANT_TYPES = {
 };
 
 const SEED_ORDER = [
-  'sunbloom', 'spitter', 'doublespitter', 'fern', 'melonlob', 'acorn',
-  'thistle', 'tubertrap', 'blastcap', 'blazereed', 'onion', 'gnasher'
+  'sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter',
+  'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap',
+  'blazereed', 'blover', 'onion', 'gnasher'
 ];
 
 const ZOMBIE_TYPES = {
@@ -100,11 +125,6 @@ const ZOMBIE_TYPES = {
     desc: 'Fast but fragile.',
     skin: '#c4d1a4', shirt: '#a33b3b'
   },
-  goliath: {
-    key: 'goliath', name: 'Goliath', hp: 3000, armor: 0, speed: 8, dmg: 200, big: true,
-    desc: 'Huge, slow, devastating to plants.',
-    skin: '#a9b88c', shirt: '#3d3d3d'
-  },
   leaper: {
     key: 'leaper', name: 'Leaper', hp: 500, armor: 0, speed: 22, dmg: 100, leap: true,
     desc: 'Vaults over the first plant it meets.',
@@ -124,12 +144,32 @@ const ZOMBIE_TYPES = {
     key: 'rusher', name: 'Rusher', hp: 1600, armor: 0, speed: 26, dmg: 150, helmet: true,
     desc: 'Fast armored bruiser.',
     skin: '#c4d1a4', shirt: '#8a2a2a'
+  },
+  goliath: {
+    key: 'goliath', name: 'Goliath', hp: 3000, armor: 0, speed: 8, dmg: 200, big: true,
+    desc: 'Huge, slow, devastating to plants.',
+    skin: '#a9b88c', shirt: '#3d3d3d'
+  },
+  flyer: {
+    key: 'flyer', name: 'Balloon Flyer', hp: 270, armor: 0, speed: 18, dmg: 100, flying: true,
+    desc: 'Floats over plants on a balloon, then lands mid-lawn.',
+    skin: '#c9b8d8', shirt: '#6a4a8a'
+  },
+  imp: {
+    key: 'imp', name: 'Imp', hp: 120, armor: 0, speed: 40, dmg: 100, scale: 0.8,
+    desc: 'Tiny, fast, and annoying. Bosses throw these.',
+    skin: '#d8c49a', shirt: '#8a5a2a'
+  },
+  boss: {
+    key: 'boss', name: 'Yard Boss', hp: 6000, armor: 0, speed: 6, dmg: 300, scale: 2.0, boss: true,
+    desc: 'A giant that hurls Imps. Has a boss HP bar on top.',
+    skin: '#9aa88c', shirt: '#2a1a3a'
   }
 };
 
 const ZOMBIE_ORDER = [
-  'shambler', 'pylonhead', 'tinhead', 'dasher', 'goliath',
-  'leaper', 'howler', 'screenback', 'rusher'
+  'shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler',
+  'screenback', 'rusher', 'goliath', 'flyer', 'imp', 'boss'
 ];
 
 const LEVELS = [
@@ -162,17 +202,45 @@ const LEVELS = [
     startSun: 100, skyEvery: 13
   },
   {
-    name: '1-5 Heavy Lobbing', day: true,
+    name: '1-5 First Boss', day: true, boss: true,
     seeds: ['sunbloom', 'spitter', 'doublespitter', 'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed'],
-    waves: 9, waveInterval: 12, waveSize: 1.2, finalCount: 16,
+    waves: 9, waveInterval: 12, waveSize: 1.2, finalCount: 14,
     pool: ['shambler', 'pylonhead', 'tinhead', 'leaper', 'dasher'],
     startSun: 125, skyEvery: 8
   },
   {
     name: '1-6 The Big Push', day: false,
-    seeds: ['sunbloom', 'spitter', 'doublespitter', 'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'onion', 'gnasher'],
-    waves: 10, waveInterval: 11, waveSize: 1.3, finalCount: 22,
-    pool: ['shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler', 'screenback', 'rusher', 'goliath'],
+    seeds: ['sunbloom', 'spitter', 'doublespitter', 'puff', 'acorn', 'fern', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'onion', 'gnasher'],
+    waves: 10, waveInterval: 11, waveSize: 1.3, finalCount: 20,
+    pool: ['shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler', 'screenback', 'rusher'],
     startSun: 75, skyEvery: 12
+  },
+  {
+    name: '2-1 Puff and Shroom', day: true,
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'acorn', 'fern', 'thistle', 'tubertrap', 'blastcap', 'blazereed'],
+    waves: 10, waveInterval: 11, waveSize: 1.3, finalCount: 20,
+    pool: ['shambler', 'pylonhead', 'dasher', 'flyer', 'howler'],
+    startSun: 100, skyEvery: 8
+  },
+  {
+    name: '2-2 Night Balloons', day: false,
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'acorn', 'fern', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'onion', 'gnasher'],
+    waves: 11, waveInterval: 10, waveSize: 1.4, finalCount: 22,
+    pool: ['shambler', 'pylonhead', 'screenback', 'flyer', 'leaper', 'howler', 'dasher'],
+    startSun: 75, skyEvery: 12
+  },
+  {
+    name: '2-3 Windy Day', day: true,
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter', 'acorn', 'fern', 'melonlob', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'],
+    waves: 11, waveInterval: 10, waveSize: 1.5, finalCount: 24,
+    pool: ['shambler', 'pylonhead', 'tinhead', 'rusher', 'leaper', 'flyer', 'screenback'],
+    startSun: 100, skyEvery: 8
+  },
+  {
+    name: '2-4 Final Assault', day: false, boss: true,
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter', 'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'],
+    waves: 12, waveInterval: 9, waveSize: 1.6, finalCount: 24,
+    pool: ['shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler', 'screenback', 'rusher', 'goliath', 'flyer'],
+    startSun: 75, skyEvery: 11
   }
 ];
