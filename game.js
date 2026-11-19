@@ -26,6 +26,7 @@ const G = {
   time: 0,
   sun: 150,
   grid: [],
+  pads: [],
   zombies: [],
   projectiles: [],
   suns: [],
@@ -56,24 +57,26 @@ const G = {
   shake: 0,
   hoverPacket: -1,
   achT: 0,
+  musicT: 0,
+  musicStep: 0,
   save: {
     completed: {},
     unlocked: [],
     achievements: [],
     bestEndless: 0,
-    stats: { kills: 0, plants: 0, bossKills: 0 },
+    stats: { kills: 0, plants: 0, bossKills: 0, sun: 0, shovels: 0 },
     settings: { mute: false, speed: 1, difficulty: 'normal' }
   }
 };
 
-const SAVE_KEY = 'gg_save_v3';
+const SAVE_KEY = 'gg_save_v4';
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (s && s.settings) {
       G.save = Object.assign(G.save, s);
       G.save.settings = Object.assign({ mute: false, speed: 1, difficulty: 'normal' }, s.settings);
-      G.save.stats = Object.assign({ kills: 0, plants: 0, bossKills: 0 }, s.stats);
+      G.save.stats = Object.assign({ kills: 0, plants: 0, bossKills: 0, sun: 0, shovels: 0 }, s.stats);
       if (!Array.isArray(G.save.achievements)) G.save.achievements = [];
       if (!G.save.completed) G.save.completed = {};
       if (!Array.isArray(G.save.unlocked)) G.save.unlocked = [];
@@ -90,6 +93,11 @@ function diffFactor() {
   if (d === 'easy') return { hp: 0.8, sp: 0.9, sun: 0.8 };
   if (d === 'hard') return { hp: 1.25, sp: 1.12, sun: 1.3 };
   return { hp: 1, sp: 1, sun: 1 };
+}
+
+function terrain(row, col) {
+  if (G.level && G.level.biome === 'pool' && row >= 1 && row <= 3) return 'water';
+  return 'grass';
 }
 
 let AC = null;
@@ -116,6 +124,17 @@ function beep(freq, dur, type, vol, slide) {
     o.start();
     o.stop(ac.currentTime + dur);
   } catch (e) { }
+}
+
+const MUSIC = [110, 0, 110, 0, 131, 0, 110, 0, 98, 0, 98, 0, 147, 0, 131, 0];
+function musicTick(dt) {
+  if (G.state !== 'playing' || G.save.settings.mute) return;
+  G.musicT -= dt;
+  if (G.musicT <= 0) {
+    G.musicT = 0.24;
+    const f = MUSIC[G.musicStep++ % MUSIC.length];
+    if (f) beep(f, 0.22, 'triangle', 0.016);
+  }
 }
 
 function rand(a, b) { return a + Math.random() * (b - a); }
@@ -160,7 +179,11 @@ const ACHIEVEMENTS = [
   { id: 'endless25', name: 'Endless 25', desc: 'Reach wave 25 in Endless Yard', test: function () { return G.endless && G.wave >= 25; } },
   { id: 'boss', name: 'Boss Down', desc: 'Destroy a Yard Boss', test: function () { return G.save.stats.bossKills >= 1; } },
   { id: 'gardener', name: 'Green Thumb', desc: 'Plant 50 plants in total', test: function () { return G.save.stats.plants >= 50; } },
-  { id: 'arsenal', name: 'Full Arsenal', desc: 'Unlock every seed packet', test: function () { return SEED_ORDER.every(function (k) { return G.save.unlocked.indexOf(k) >= 0; }); } }
+  { id: 'arsenal', name: 'Full Arsenal', desc: 'Unlock every seed packet', test: function () { return SEED_ORDER.every(function (k) { return G.save.unlocked.indexOf(k) >= 0; }); } },
+  { id: 'pool', name: 'Pool Party', desc: 'Win a pool level', test: function () { return false; } },
+  { id: 'hoarder', name: 'Sun Hoarder', desc: 'Collect 500 sun in total', test: function () { return G.save.stats.sun >= 500; } },
+  { id: 'marathon', name: 'Marathon', desc: 'Win 5 adventure levels', test: function () { return Object.keys(G.save.completed).length >= 5; } },
+  { id: 'shovelist', name: 'Rearranger', desc: 'Remove 20 plants with the shovel', test: function () { return G.save.stats.shovels >= 20; } }
 ];
 function earn(id) {
   if (G.save.achievements.indexOf(id) >= 0) return;
@@ -181,7 +204,8 @@ function checkAchievements() {
 function resetField() {
   G.time = 0;
   G.grid = [];
-  for (let r = 0; r < ROWS; r++) G.grid.push(new Array(COLS).fill(null));
+  G.pads = [];
+  for (let r = 0; r < ROWS; r++) { G.grid.push(new Array(COLS).fill(null)); G.pads.push(new Array(COLS).fill(null)); }
   G.zombies = [];
   G.projectiles = [];
   G.suns = [];
@@ -207,6 +231,8 @@ function resetField() {
   G.shake = 0;
   G.hoverPacket = -1;
   G.achT = 0;
+  G.musicT = 0;
+  G.musicStep = 0;
   G.cooldowns = {};
   for (const k of SEED_ORDER) G.cooldowns[k] = 0;
 }
@@ -226,7 +252,7 @@ function wavePool(w) {
   if (L.endless) {
     const pool = ['shambler', 'shambler', 'pylonhead'];
     if (w >= 3) pool.push('dasher');
-    if (w >= 5) pool.push('pylonhead', 'tinhead', 'howler', 'flyer');
+    if (w >= 5) pool.push('pylonhead', 'tinhead', 'howler', 'flyer', 'ducky');
     if (w >= 8) pool.push('screenback', 'leaper', 'tinhead');
     if (w >= 11) pool.push('rusher', 'goliath', 'flyer');
     if (w >= 14) pool.push('imp');
@@ -238,7 +264,7 @@ function wavePool(w) {
 function buildTotals() {
   let total = 0;
   for (let w = 1; w <= G.level.waves; w++) total += waveCount(w);
-  if (G.level.boss) total += 1 + (G.levelIndex >= 9 ? 1 : 0);
+  if (G.level.boss) total += 1 + (G.levelIndex >= 12 ? 1 : 0);
   G.totalZombies = total;
 }
 
@@ -251,13 +277,14 @@ function startLevel(i) {
   G.sun = G.level.startSun;
   G.nextWaveT = 20;
   buildTotals();
+  setBanner(G.level.name, true);
   G.state = 'playing';
 }
 
 function startEndless() {
   G.levelIndex = -1;
   G.endless = true;
-  G.level = { name: 'Endless Yard', endless: true, day: true, waveInterval: 11, startSun: 150, skyEvery: 9 };
+  G.level = { name: 'Endless Yard', endless: true, day: true, biome: 'lawn', waveInterval: 11, startSun: 150, skyEvery: 9 };
   const unlocked = ['sunbloom', 'spitter', 'acorn'];
   for (const k of G.save.unlocked) if (unlocked.indexOf(k) < 0) unlocked.push(k);
   G.seedList = unlocked;
@@ -265,6 +292,7 @@ function startEndless() {
   G.sun = G.level.startSun;
   G.nextWaveT = 20;
   G.totalZombies = Infinity;
+  setBanner('Endless Yard', true);
   G.state = 'playing';
 }
 
@@ -292,6 +320,7 @@ function spawnZombie(typeKey, row) {
     speed: t.speed * df.sp * rand(0.92, 1.08),
     dmg: t.dmg,
     slowT: 0,
+    flash: 0,
     eating: null,
     dead: false,
     dying: 0,
@@ -320,7 +349,7 @@ function spawnWave() {
   if ((finalWave && G.level.boss) || (G.endless && w % 10 === 0)) {
     spawnZombie('boss', irand(0, ROWS - 1));
     G.spawnedZombies++;
-    if (G.endless || G.levelIndex >= 9) { spawnZombie('boss', irand(0, ROWS - 1)); G.spawnedZombies++; }
+    if (G.endless || G.levelIndex >= 12) { spawnZombie('boss', irand(0, ROWS - 1)); G.spawnedZombies++; }
     setBanner('BOSS!', true);
     beep(90, 0.8, 'sawtooth', 0.08, 40);
   }
@@ -389,6 +418,7 @@ function fireProjectile(p, def) {
 
 function damageZombie(z, dmg, slow, src) {
   if (z.dead) return;
+  z.flash = 0.09;
   if (z.armor > 0) {
     z.armor -= dmg;
     if (z.armor < 0) { z.hp += z.armor; z.armor = 0; addFloater(z.x, rowY(z.row) - 60, 'crack!', '#ffd23f'); }
@@ -452,11 +482,22 @@ function tryPlace(row, col) {
   const key = G.selectedSeed;
   if (!key || G.seedList.indexOf(key) < 0) return;
   const def = PLANT_TYPES[key];
-  if (G.grid[row][col]) { beep(140, 0.08, 'square', 0.03, 90); return; }
+  const terr = terrain(row, col);
+  const padHere = !!G.pads[row][col];
+  if (terr === 'water') {
+    if (!def.water && !padHere) { setMessage('Water! Plant a Lotus Pad or Reed Shooter first'); beep(140, 0.08, 'square', 0.03, 90); return; }
+  } else if (def.water) {
+    setMessage('That plant only grows in water!');
+    beep(140, 0.08, 'square', 0.03, 90);
+    return;
+  }
+  if (def.pad) {
+    if (padHere || G.grid[row][col]) { beep(140, 0.08, 'square', 0.03, 90); return; }
+  } else if (G.grid[row][col]) { beep(140, 0.08, 'square', 0.03, 90); return; }
   if (G.cooldowns[key] > G.time) { beep(140, 0.08, 'square', 0.03, 90); return; }
   if (G.sun < def.cost) { beep(140, 0.08, 'square', 0.03, 90); return; }
   const ctr = cellCenter(row, col);
-  G.grid[row][col] = {
+  const p = {
     type: key, row: row, col: col, x: ctr.x, y: ctr.y,
     hp: def.hp, maxHp: def.hp,
     sunT: def.sunEvery ? def.sunEvery * 0.5 : 0,
@@ -470,8 +511,11 @@ function tryPlace(row, col) {
     chewT: 0,
     recoil: 0,
     xp: 0,
-    level: 1
+    level: 1,
+    born: G.time
   };
+  if (def.pad) G.pads[row][col] = p;
+  else G.grid[row][col] = p;
   G.sun -= def.cost;
   G.save.stats.plants++;
   G.cooldowns[key] = G.time + def.cd;
@@ -490,6 +534,7 @@ function winGame() {
     const prev = G.save.completed[G.levelIndex] || 0;
     if (stars > prev) G.save.completed[G.levelIndex] = stars;
     if (G.mowersLost === 0) earn('flawless');
+    if (G.level.biome === 'pool') earn('pool');
     for (const k of G.level.seeds) {
       if (G.save.unlocked.indexOf(k) < 0) G.save.unlocked.push(k);
     }
@@ -563,7 +608,7 @@ function update(dt) {
           spawnSunAt(p.x, p.y, amount, night);
           beep(880, 0.08, 'sine', 0.03);
         }
-      } else if (def.canLevel || p.type === 'spitter') {
+      } else if (def.canLevel) {
         const maxDist = def.range ? def.range * CELL_W : Infinity;
         const both = !!def.split;
         p.shootT -= dt;
@@ -683,6 +728,7 @@ function update(dt) {
       continue;
     }
     if (z.slowT > 0) z.slowT -= dt;
+    if (z.flash > 0) z.flash -= dt;
     if (z.leapT > 0) z.leapT -= dt;
     const t = ZOMBIE_TYPES[z.type];
     if (t.enrage && !z.enraged && z.armor <= 0 && z.hp < (z.maxHp - z.armorMax) * 0.5) {
@@ -704,21 +750,23 @@ function update(dt) {
       }
     }
     const col = colOfZombie(z);
-    const plant = (!z.flying && col >= 0 && col < COLS) ? G.grid[z.row][col] : null;
-    if (plant && t.leap && !z.jumped) {
+    let target = null;
+    if (!z.flying && col >= 0 && col < COLS) target = G.grid[z.row][col] || G.pads[z.row][col] || null;
+    if (target && t.leap && !z.jumped) {
       z.jumped = true;
       z.leapT = 0.45;
       z.x -= CELL_W + 6;
       addFloater(z.x, rowY(z.row) - 70, 'boing!', '#9adf6a');
       beep(500, 0.12, 'square', 0.04, 700);
-    } else if (plant) {
-      plant.hp -= z.dmg * dt;
-      z.eating = plant;
-      if (plant.hp <= 0) {
-        G.grid[z.row][col] = null;
+    } else if (target) {
+      target.hp -= z.dmg * dt;
+      z.eating = target;
+      if (target.hp <= 0) {
+        if (G.grid[z.row][col] === target) G.grid[z.row][col] = null;
+        else if (G.pads[z.row][col] === target) G.pads[z.row][col] = null;
         z.eating = null;
         addParticles(z.x - 10, rowY(z.row) - 20, 10, '#b08a5a', 140, 5, 250);
-        if (PLANT_TYPES[plant.type].diverte) {
+        if (PLANT_TYPES[target.type].diverte) {
           const oldRow = z.row;
           let nr = oldRow;
           while (nr === oldRow) nr = irand(0, ROWS - 1);
@@ -732,8 +780,9 @@ function update(dt) {
       }
     } else {
       z.eating = null;
-      const slow = z.slowT > 0 ? 0.5 : 1;
-      z.x -= z.speed * slow * dt;
+      let spd = z.speed * (z.slowT > 0 ? 0.5 : 1);
+      if (terrain(z.row, col) === 'water') spd *= 0.7;
+      z.x -= spd * dt;
       if (z.flying && z.x <= z.landX) {
         z.flying = false;
         addFloater(z.x, rowY(z.row) - 80, 'lands!', '#cfe8ff');
@@ -779,6 +828,7 @@ function update(dt) {
       if (d < 24) {
         s.got = true;
         G.sun += s.value;
+        G.save.stats.sun += s.value;
         addFloater(70, 85, '+' + s.value, '#ffd23f');
         beep(660, 0.06, 'sine', 0.04, 990);
       } else {
@@ -820,9 +870,9 @@ function handleClick(x, y) {
   }
   const cell = cellFromXY(x, y);
   if (G.shovel) {
-    if (cell && G.grid[cell.row][cell.col]) {
-      G.grid[cell.row][cell.col] = null;
-      beep(150, 0.08, 'square', 0.03, 80);
+    if (cell) {
+      if (G.grid[cell.row][cell.col]) { G.grid[cell.row][cell.col] = null; G.save.stats.shovels++; beep(150, 0.08, 'square', 0.03, 80); }
+      else if (G.pads[cell.row][cell.col]) { G.pads[cell.row][cell.col] = null; G.save.stats.shovels++; beep(150, 0.08, 'square', 0.03, 80); }
     }
     G.shovel = false;
     return;
@@ -874,7 +924,10 @@ let last = performance.now();
 function loop(t) {
   const dt = Math.min(0.05, (t - last) / 1000);
   last = t;
-  if (G.state === 'playing') update(dt * G.save.settings.speed);
+  if (G.state === 'playing') {
+    update(dt * G.save.settings.speed);
+    musicTick(dt);
+  }
   render();
   requestAnimationFrame(loop);
 }

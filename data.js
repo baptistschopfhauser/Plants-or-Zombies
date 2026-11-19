@@ -49,6 +49,18 @@ const PLANT_TYPES = {
     dmg: 80, splash: 40, rate: 3.0, arc: true, canLevel: true,
     body: '#4da83e', dark: '#2e6b26', leaf: '#3fae4a'
   },
+  reed: {
+    key: 'reed', name: 'Reed Shooter', cost: 125, cd: 10, hp: 300,
+    desc: 'Aquatic shooter — plants directly on water. Levels up with kills.',
+    dmg: 20, rate: 1.3, burst: 1, canLevel: true, water: true,
+    body: '#3fae6a', dark: '#25704a', leaf: '#7fd4a8'
+  },
+  lotus: {
+    key: 'lotus', name: 'Lotus Pad', cost: 25, cd: 10, hp: 300,
+    desc: 'Floats on water — plant anything on top of it',
+    water: true, pad: true,
+    body: '#5fc46a', dark: '#3a8a44', leaf: '#3fae4a'
+  },
   acorn: {
     key: 'acorn', name: 'Acorn Wall', cost: 50, cd: 20, hp: 4000,
     desc: 'A tough wall that blocks zombies',
@@ -100,8 +112,8 @@ const PLANT_TYPES = {
 
 const SEED_ORDER = [
   'sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter',
-  'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap',
-  'blazereed', 'blover', 'onion', 'gnasher'
+  'fern', 'melonlob', 'reed', 'lotus', 'acorn', 'thistle', 'tubertrap',
+  'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'
 ];
 
 const ZOMBIE_TYPES = {
@@ -155,6 +167,11 @@ const ZOMBIE_TYPES = {
     desc: 'Floats over plants on a balloon, then lands mid-lawn.',
     skin: '#c9b8d8', shirt: '#6a4a8a'
   },
+  ducky: {
+    key: 'ducky', name: 'Ducky', hp: 200, armor: 200, speed: 10, dmg: 100, ring: true,
+    desc: 'Floats on an inner tube: +200 armor, slow in water.',
+    skin: '#c9d8a8', shirt: '#4a7a9a'
+  },
   imp: {
     key: 'imp', name: 'Imp', hp: 120, armor: 0, speed: 40, dmg: 100, scale: 0.8,
     desc: 'Tiny, fast, and annoying. Bosses throw these.',
@@ -169,78 +186,99 @@ const ZOMBIE_TYPES = {
 
 const ZOMBIE_ORDER = [
   'shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler',
-  'screenback', 'rusher', 'goliath', 'flyer', 'imp', 'boss'
+  'screenback', 'rusher', 'goliath', 'flyer', 'ducky', 'imp', 'boss'
 ];
 
 const LEVELS = [
   {
-    name: '1-1 First Sprouts', day: true,
+    name: '1-1 First Sprouts', day: true, biome: 'lawn',
     seeds: ['sunbloom', 'spitter', 'acorn'],
     waves: 5, waveInterval: 16, waveSize: 0.8, finalCount: 8,
     pool: ['shambler', 'shambler', 'pylonhead'],
     startSun: 150, skyEvery: 8
   },
   {
-    name: '1-2 Hungry Horde', day: true,
+    name: '1-2 Hungry Horde', day: true, biome: 'lawn',
     seeds: ['sunbloom', 'spitter', 'acorn', 'fern', 'blastcap'],
     waves: 6, waveInterval: 15, waveSize: 1.0, finalCount: 10,
     pool: ['shambler', 'pylonhead', 'dasher', 'pylonhead'],
     startSun: 125, skyEvery: 8
   },
   {
-    name: '1-3 Night Shift', day: false,
+    name: '1-3 Night Shift', day: false, biome: 'lawn',
     seeds: ['sunbloom', 'spitter', 'doublespitter', 'acorn', 'fern', 'thistle', 'blastcap'],
     waves: 7, waveInterval: 14, waveSize: 1.0, finalCount: 12,
     pool: ['shambler', 'pylonhead', 'dasher', 'howler'],
     startSun: 100, skyEvery: 13
   },
   {
-    name: '1-4 Minefield', day: false,
+    name: '1-4 Minefield', day: false, biome: 'lawn',
     seeds: ['sunbloom', 'spitter', 'doublespitter', 'acorn', 'fern', 'thistle', 'tubertrap', 'onion', 'blastcap'],
     waves: 8, waveInterval: 13, waveSize: 1.1, finalCount: 14,
     pool: ['shambler', 'pylonhead', 'dasher', 'screenback', 'howler'],
     startSun: 100, skyEvery: 13
   },
   {
-    name: '1-5 First Boss', day: true, boss: true,
+    name: '1-5 First Boss', day: true, biome: 'lawn', boss: true,
     seeds: ['sunbloom', 'spitter', 'doublespitter', 'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed'],
     waves: 9, waveInterval: 12, waveSize: 1.2, finalCount: 14,
     pool: ['shambler', 'pylonhead', 'tinhead', 'leaper', 'dasher'],
     startSun: 125, skyEvery: 8
   },
   {
-    name: '1-6 The Big Push', day: false,
+    name: '1-6 The Big Push', day: false, biome: 'lawn',
     seeds: ['sunbloom', 'spitter', 'doublespitter', 'puff', 'acorn', 'fern', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'onion', 'gnasher'],
     waves: 10, waveInterval: 11, waveSize: 1.3, finalCount: 20,
     pool: ['shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler', 'screenback', 'rusher'],
     startSun: 75, skyEvery: 12
   },
   {
-    name: '2-1 Puff and Shroom', day: true,
+    name: '2-1 Puff and Shroom', day: true, biome: 'lawn',
     seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'acorn', 'fern', 'thistle', 'tubertrap', 'blastcap', 'blazereed'],
     waves: 10, waveInterval: 11, waveSize: 1.3, finalCount: 20,
     pool: ['shambler', 'pylonhead', 'dasher', 'flyer', 'howler'],
     startSun: 100, skyEvery: 8
   },
   {
-    name: '2-2 Night Balloons', day: false,
+    name: '2-2 Night Balloons', day: false, biome: 'lawn',
     seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'acorn', 'fern', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'onion', 'gnasher'],
     waves: 11, waveInterval: 10, waveSize: 1.4, finalCount: 22,
     pool: ['shambler', 'pylonhead', 'screenback', 'flyer', 'leaper', 'howler', 'dasher'],
     startSun: 75, skyEvery: 12
   },
   {
-    name: '2-3 Windy Day', day: true,
+    name: '2-3 Windy Day', day: true, biome: 'lawn',
     seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter', 'acorn', 'fern', 'melonlob', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'],
     waves: 11, waveInterval: 10, waveSize: 1.5, finalCount: 24,
     pool: ['shambler', 'pylonhead', 'tinhead', 'rusher', 'leaper', 'flyer', 'screenback'],
     startSun: 100, skyEvery: 8
   },
   {
-    name: '2-4 Final Assault', day: false, boss: true,
+    name: '2-4 Final Assault', day: false, biome: 'lawn', boss: true,
     seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter', 'fern', 'melonlob', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'],
     waves: 12, waveInterval: 9, waveSize: 1.6, finalCount: 24,
     pool: ['shambler', 'pylonhead', 'tinhead', 'dasher', 'leaper', 'howler', 'screenback', 'rusher', 'goliath', 'flyer'],
+    startSun: 75, skyEvery: 11
+  },
+  {
+    name: '3-1 Splash Zone', day: true, biome: 'pool',
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'fern', 'melonlob', 'lotus', 'reed', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed'],
+    waves: 10, waveInterval: 11, waveSize: 1.5, finalCount: 22,
+    pool: ['shambler', 'pylonhead', 'ducky', 'dasher', 'flyer'],
+    startSun: 125, skyEvery: 8
+  },
+  {
+    name: '3-2 Deep End', day: false, biome: 'pool',
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter', 'fern', 'melonlob', 'lotus', 'reed', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'],
+    waves: 11, waveInterval: 10, waveSize: 1.6, finalCount: 24,
+    pool: ['shambler', 'pylonhead', 'screenback', 'ducky', 'ducky', 'leaper', 'howler', 'flyer'],
+    startSun: 100, skyEvery: 12
+  },
+  {
+    name: '3-3 Boss Tide', day: false, biome: 'pool', boss: true,
+    seeds: ['sunbloom', 'sunshroom', 'spitter', 'puff', 'doublespitter', 'splitspitter', 'fern', 'melonlob', 'lotus', 'reed', 'acorn', 'thistle', 'tubertrap', 'blastcap', 'blazereed', 'blover', 'onion', 'gnasher'],
+    waves: 12, waveInterval: 9, waveSize: 1.7, finalCount: 26,
+    pool: ['shambler', 'pylonhead', 'tinhead', 'ducky', 'dasher', 'leaper', 'screenback', 'rusher', 'goliath', 'flyer'],
     startSun: 75, skyEvery: 11
   }
 ];

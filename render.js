@@ -69,9 +69,18 @@ function drawSunIcon(x, y, r, moon) {
 }
 
 function packetRect(i) {
-  const col = i % 8;
-  const rowi = Math.floor(i / 8);
+  const col = i % 9;
+  const rowi = Math.floor(i / 9);
   return { x: 132 + col * 82, y: 10 + rowi * 84, w: 76, h: 80 };
+}
+
+function miniPlant(key, x, y) {
+  ctx.save();
+  ctx.translate(x, y + 12);
+  ctx.scale(0.62, 0.62);
+  ctx.translate(-x, -(y + 12));
+  drawPlant({ type: key, row: 0, col: 0, x: x, y: y + 12, hp: 1, maxHp: 1, armT: 99, blowT: 99, growT: 99, grown: true, armed: true, state: 'ready', recoil: 0, xp: 0, level: 1, born: 0 });
+  ctx.restore();
 }
 
 function drawPacket(i) {
@@ -88,19 +97,16 @@ function drawPacket(i) {
   ctx.strokeStyle = sel ? '#c8860a' : '#8a6a3a';
   ctx.lineWidth = sel ? 3 : 1.5;
   ctx.stroke();
-  ctx.fillStyle = def.body;
-  ctx.beginPath(); ctx.arc(x + 17, y + 20, 12, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = def.dark;
-  ctx.beginPath(); ctx.arc(x + 17, y + 20, 5.5, 0, Math.PI * 2); ctx.fill();
+  miniPlant(key, x + 19, y + 18);
   ctx.fillStyle = '#3a2a12';
   ctx.font = 'bold 9px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const nameLines = wrapText(def.name, 12);
-  ctx.fillText(nameLines[0], x + 33, y + 16);
-  if (nameLines[1]) ctx.fillText(nameLines[1], x + 33, y + 26);
-  drawSunIcon(x + 39, y + 40, 6.5, false);
-  ctx.fillText(String(def.cost), x + 50, y + 44);
+  ctx.fillText(nameLines[0], x + 38, y + 14);
+  if (nameLines[1]) ctx.fillText(nameLines[1], x + 38, y + 24);
+  drawSunIcon(x + 44, y + 38, 6.5, false);
+  ctx.fillText(String(def.cost), x + 55, y + 42);
   const rem = G.cooldowns[key] - G.time;
   if (rem > 0) {
     const frac = clamp(rem / def.cd, 0, 1);
@@ -164,35 +170,18 @@ function drawTopbar() {
   ctx.fillText(String(G.sun), 65, 115);
   G.hoverPacket = -1;
   for (let i = 0; i < G.seedList.length; i++) drawPacket(i);
-  const sh = { x: 800, y: 10, w: 64, h: 80 };
-  ctx.fillStyle = G.shovel ? '#ffe9a8' : '#d8c49a';
-  rr(sh.x, sh.y, sh.w, sh.h, 6);
-  ctx.fill();
-  ctx.strokeStyle = '#8a6a3a';
-  ctx.lineWidth = G.shovel ? 3 : 1.5;
-  ctx.stroke();
-  ctx.fillStyle = '#7a6a4a';
-  ctx.fillRect(sh.x + 28, sh.y + 12, 8, 34);
-  ctx.fillStyle = '#4a4a4a';
-  rr(sh.x + 20, sh.y + 44, 24, 16, 4);
-  ctx.fill();
-  ctx.fillStyle = '#3a2a12';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('SHOVEL', sh.x + sh.w / 2, sh.y + sh.h - 8);
-  G.buttons.push({ x: sh.x, y: sh.y, w: sh.w, h: sh.h, action: function () { G.shovel = !G.shovel; if (G.shovel) G.selectedSeed = null; } });
-  button(800, 94, 64, 66, '☰', function () { G.state = 'paused'; }, { font: 'bold 24px sans-serif' });
   ctx.fillStyle = '#e8d0a8';
   ctx.font = 'bold 16px sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.fillText((G.level ? G.level.name : ''), W - 16, 40);
+  ctx.fillText((G.level ? G.level.name : ''), W - 16, 36);
   ctx.font = '13px sans-serif';
   ctx.fillStyle = '#c8a878';
   const d = G.save.settings.difficulty;
-  ctx.fillText('Difficulty: ' + d.charAt(0).toUpperCase() + d.slice(1) + (night ? ' · Night' : ' · Day'), W - 16, 66);
-  ctx.fillStyle = '#c8a878';
-  ctx.fillText('kills ' + G.save.stats.kills + ' · planted ' + G.save.stats.plants, W - 16, 92);
+  const biome = G.level && G.level.biome === 'pool' ? ' · Pool' : (night ? ' · Night' : ' · Day');
+  ctx.fillText('Difficulty: ' + d.charAt(0).toUpperCase() + d.slice(1) + biome, W - 16, 62);
+  ctx.fillText('kills ' + G.save.stats.kills + ' · planted ' + G.save.stats.plants + ' · sun ' + G.save.stats.sun, W - 16, 88);
+  ctx.fillText('achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length, W - 16, 114);
   drawTooltip();
 }
 
@@ -205,37 +194,42 @@ function drawBottombar() {
   ctx.font = '13px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Keys 1-9,0,-,= select seed · S shovel · Esc/Space pause · click sun to collect', 14, BOTTOM_Y + 40);
-  ctx.fillText('Shooter plants level up with kills (5 / 15) — up to Lv3, more damage, faster fire', 14, BOTTOM_Y + 66);
+  ctx.fillText('Keys 1-9,0,-,= select seed · S shovel · Esc/Space pause · click sun to collect', 14, BOTTOM_Y + 26);
   const wtext = G.endless ? 'Endless — Wave ' + G.wave : 'Wave ' + Math.min(G.wave, G.level.waves) + ' / ' + G.level.waves;
   ctx.fillStyle = '#ffe9a8';
   ctx.font = 'bold 14px sans-serif';
-  ctx.fillText(wtext, 620, BOTTOM_Y + 26);
+  ctx.fillText(wtext, 14, BOTTOM_Y + 52);
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  rr(620, BOTTOM_Y + 40, 300, 18, 9);
+  rr(14, BOTTOM_Y + 62, 340, 18, 9);
   ctx.fill();
   let frac;
   if (G.endless) frac = (G.wave % 10) / 10;
   else frac = G.totalZombies ? clamp(G.killed / G.totalZombies, 0, 1) : 0;
   if (frac > 0) {
     ctx.fillStyle = '#ffd23f';
-    rr(622, BOTTOM_Y + 42, 296 * frac, 14, 7);
+    rr(16, BOTTOM_Y + 64, 336 * frac, 14, 7);
     ctx.fill();
   }
   ctx.fillStyle = '#d8e8c8';
   ctx.font = '12px sans-serif';
-  ctx.fillText('stopped ' + G.killed, 932, BOTTOM_Y + 26);
-  const by = BOTTOM_Y + 72, bh = 56;
-  button(620, by, 64, bh, 'II', function () { G.state = 'paused'; }, { font: 'bold 20px sans-serif' });
-  button(692, by, 72, bh, G.save.settings.speed + 'x', function () {
+  ctx.fillText('stopped ' + G.killed + ' · shooters level up with kills (5/15)', 14, BOTTOM_Y + 96);
+  const by = BOTTOM_Y + 24, bh = 56;
+  const shLabel = G.shovel ? 'Shovel ✓' : 'Shovel (S)';
+  button(620, by, 92, bh, shLabel, function () { G.shovel = !G.shovel; if (G.shovel) G.selectedSeed = null; }, { font: 'bold 13px sans-serif', bg: G.shovel ? '#c8860a' : '#8a5a33' });
+  button(720, by, 60, bh, 'II', function () { G.state = 'paused'; }, { font: 'bold 20px sans-serif' });
+  button(788, by, 68, bh, G.save.settings.speed + 'x', function () {
     G.save.settings.speed = G.save.settings.speed === 1 ? 2 : 1;
     persist();
   }, { font: 'bold 18px sans-serif' });
-  button(772, by, 64, bh, G.save.settings.mute ? '✕' : '♪', function () {
+  button(864, by, 60, bh, G.save.settings.mute ? '✕' : '♪', function () {
     G.save.settings.mute = !G.save.settings.mute;
     persist();
   }, { font: 'bold 20px sans-serif' });
-  button(844, by, 80, bh, 'Menu', function () { G.state = 'menu'; }, { font: 'bold 15px sans-serif' });
+  button(932, by, 76, bh, 'Menu', function () { G.state = 'menu'; }, { font: 'bold 15px sans-serif' });
+  ctx.fillStyle = '#c8a878';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('Garden Guardians v4', W - 14, BOTTOM_Y + 96);
 }
 
 function drawPlant(p) {
@@ -245,12 +239,31 @@ function drawPlant(p) {
   const x = p.x + wob * 0.4;
   const y = p.y;
   const scale = p.type === 'sunshroom' ? (p.grown ? 1 : 0.55) : 1;
+  const pop = p.born !== undefined ? clamp((G.time - p.born) * 5, 0, 1) : 1;
+  const popScale = 0.4 + 0.6 * (1 - Math.pow(1 - pop, 3));
   ctx.save();
   ctx.translate(x, y + 34);
-  ctx.scale(scale, scale);
+  ctx.scale(scale * popScale, scale * popScale);
   ctx.translate(-x, -(y + 34));
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.beginPath(); ctx.ellipse(p.x, y + 34, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
+  if (def.pad) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(p.x, y + 30, 26, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = def.body;
+    ctx.beginPath(); ctx.ellipse(x, y + 12, 30, 16, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = def.dark;
+    ctx.beginPath();
+    ctx.moveTo(x + 26, y + 12);
+    ctx.lineTo(x + 8, y + 4);
+    ctx.lineTo(x + 8, y + 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x - 8, y + 8, 12, 5, -0.2, 0, Math.PI * 2); ctx.stroke();
+  } else {
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.ellipse(p.x, y + 34, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
+  }
   if (p.type === 'sunbloom' || p.type === 'sunshroom') {
     ctx.strokeStyle = '#2f7a2a'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(x, y + 28); ctx.lineTo(x, y + 2); ctx.stroke();
@@ -275,7 +288,7 @@ function drawPlant(p) {
       ctx.textAlign = 'center';
       ctx.fillText(Math.ceil(p.growT) + 's', x, y - 34);
     }
-  } else if (p.type === 'spitter' || p.type === 'puff' || p.type === 'doublespitter' || p.type === 'fern' || p.type === 'splitspitter') {
+  } else if (p.type === 'spitter' || p.type === 'puff' || p.type === 'doublespitter' || p.type === 'fern' || p.type === 'splitspitter' || p.type === 'reed') {
     const big = p.type === 'doublespitter';
     const small = p.type === 'puff';
     const hr = big ? 19 : small ? 12 : 16;
@@ -307,6 +320,11 @@ function drawPlant(p) {
         ctx.lineTo(x - 2 + Math.cos(a) * 10, y + Math.sin(a) * 10);
         ctx.stroke();
       }
+    }
+    if (p.type === 'reed') {
+      ctx.strokeStyle = def.dark; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - 10, y + 26); ctx.lineTo(x - 14, y + 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 8, y + 26); ctx.lineTo(x + 12, y + 4); ctx.stroke();
     }
     ctx.fillStyle = '#12222e';
     ctx.beginPath(); ctx.arc(x - 8, y - 5, 3, 0, Math.PI * 2); ctx.fill();
@@ -359,9 +377,9 @@ function drawPlant(p) {
     ctx.beginPath(); ctx.arc(x, y + 8, 6, 0, Math.PI * 2); ctx.fill();
   } else if (p.type === 'tubertrap') {
     if (!p.armed) {
-      ctx.fillStyle = '#8a6a42';
+      ctx.fillStyle = terrain(p.row, p.col) === 'water' ? '#6a5a3a' : '#8a6a42';
       ctx.beginPath(); ctx.ellipse(x, y + 18, 20, 12, 0, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = '#6e5230';
+      ctx.fillStyle = '#5a4a2e';
       ctx.beginPath(); ctx.ellipse(x + 6, y + 12, 6, 3, 0.4, 0, Math.PI * 2); ctx.fill();
     } else {
       ctx.fillStyle = def.body;
@@ -464,7 +482,7 @@ function drawPlant(p) {
     ctx.textAlign = 'center';
     ctx.fillText('★'.repeat(p.level - 1), x, y - 52);
   }
-  if (p.hp < p.maxHp) {
+  if (!def.pad && p.hp < p.maxHp) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(x - 22, y - 46, 44, 5);
     ctx.fillStyle = p.hp / p.maxHp > 0.4 ? '#5ad14a' : '#e0483e';
@@ -472,7 +490,6 @@ function drawPlant(p) {
   }
   ctx.restore();
 }
-
 function drawZombie(z) {
   const t = ZOMBIE_TYPES[z.type];
   let s = z.big ? 1.5 : 1;
@@ -496,6 +513,12 @@ function drawZombie(z) {
   ctx.fillStyle = '#3d4450';
   ctx.fillRect(x - 10 * s + legSwing * 0.5, y - 4 * s, 8 * s, 10 * s);
   ctx.fillRect(x + 2 * s - legSwing * 0.5, y - 4 * s, 8 * s, 10 * s);
+  if (t.ring && terrain(z.row, colOfZombie(z)) === 'water') {
+    ctx.strokeStyle = '#e8a03c'; ctx.lineWidth = 5 * s;
+    ctx.beginPath(); ctx.ellipse(x, y + 2 * s, 18 * s, 7 * s, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.ellipse(x, y + 2 * s, 18 * s, 7 * s, 0, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke();
+  }
   ctx.fillStyle = t.shirt;
   rr(x - 14 * s, y - 26 * s, 28 * s, 26 * s, 6 * s);
   ctx.fill();
@@ -578,6 +601,10 @@ function drawZombie(z) {
     ctx.fillStyle = 'rgba(120,200,255,0.3)';
     ctx.beginPath(); ctx.arc(x + wob * 0.3, y - 30 * s, 16 * s, 0, Math.PI * 2); ctx.fill();
   }
+  if (z.flash > 0 && !z.dead) {
+    ctx.fillStyle = 'rgba(255,255,255,' + clamp(z.flash * 6, 0, 0.7) + ')';
+    ctx.beginPath(); ctx.arc(x + wob * 0.3, y - 28 * s, 18 * s, 0, Math.PI * 2); ctx.fill();
+  }
   if (!z.dead && (z.hp < z.maxHp - z.armorMax || z.armor < z.armorMax)) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(x - 22 * s, y - 58 * s, 44 * s, 5);
@@ -611,9 +638,10 @@ function drawMower(m, ri) {
 }
 
 function drawSunToken(s) {
+  const pulse = 1 + Math.sin(G.time * 4) * 0.06;
   const blink = !s.fly && s.life < 2 ? (Math.floor(G.time * 6) % 2 === 0 ? 0.35 : 1) : 1;
   ctx.globalAlpha = blink;
-  drawSunIcon(s.x, s.y, s.fly ? 12 : 17, s.night);
+  drawSunIcon(s.x, s.y, (s.fly ? 12 : 17) * pulse, s.night);
   ctx.globalAlpha = 1;
 }
 
@@ -656,6 +684,37 @@ function drawBossBar() {
   ctx.fillText('YARD BOSS', bx + bw / 2, by + 9);
 }
 
+function drawLawnTiles(night) {
+  const pool = G.level && G.level.biome === 'pool';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const px = LAWN_X + c * CELL_W, py = LAWN_Y + r * CELL_H;
+      if (pool && terrain(r, c) === 'water') {
+        const wg = ctx.createLinearGradient(0, py, 0, py + CELL_H);
+        if (night) { wg.addColorStop(0, '#1a3a5a'); wg.addColorStop(1, '#14304e'); }
+        else { wg.addColorStop(0, '#4aa8e0'); wg.addColorStop(1, '#3a8ec8'); }
+        ctx.fillStyle = wg;
+        ctx.fillRect(px, py, CELL_W, CELL_H);
+        ctx.strokeStyle = night ? 'rgba(180,220,255,0.25)' : 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 2;
+        for (let wline = 0; wline < 3; wline++) {
+          const wy = py + 20 + wline * 30 + Math.sin(G.time * 2 + c * 0.8 + wline) * 4;
+          ctx.beginPath();
+          ctx.moveTo(px + 6, wy);
+          ctx.quadraticCurveTo(px + CELL_W / 2, wy - 6, px + CELL_W - 6, wy);
+          ctx.stroke();
+        }
+      } else {
+        if (night) ctx.fillStyle = (r + c) % 2 ? '#2a4a38' : '#315540';
+        else ctx.fillStyle = (r + c) % 2 ? '#6fbf44' : '#7ecf52';
+        ctx.fillRect(px, py, CELL_W, CELL_H);
+        ctx.fillStyle = r % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+        ctx.fillRect(px, py, CELL_W, CELL_H);
+      }
+    }
+  }
+}
+
 function drawGame() {
   const night = G.level && !G.level.day;
   const sky = ctx.createLinearGradient(0, 0, 0, H);
@@ -683,15 +742,7 @@ function drawGame() {
       ctx.fill();
     }
   }
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (night) ctx.fillStyle = (r + c) % 2 ? '#2a4a38' : '#315540';
-      else ctx.fillStyle = (r + c) % 2 ? '#6fbf44' : '#7ecf52';
-      ctx.fillRect(LAWN_X + c * CELL_W, LAWN_Y + r * CELL_H, CELL_W, CELL_H);
-    }
-    ctx.fillStyle = r % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
-    ctx.fillRect(LAWN_X, LAWN_Y + r * CELL_H, LAWN_W, CELL_H);
-  }
+  drawLawnTiles(night);
   ctx.fillStyle = night ? '#18242e' : '#8a6a3a';
   ctx.fillRect(RIGHT_X, LAWN_Y, W - RIGHT_X, LAWN_H);
   ctx.fillStyle = night ? 'rgba(10,18,26,0.5)' : 'rgba(60,40,16,0.25)';
@@ -734,7 +785,11 @@ function drawGame() {
     const cell = cellFromXY(G.mouse.x, G.mouse.y);
     if (cell) {
       const def = PLANT_TYPES[G.selectedSeed];
-      const ok = !G.grid[cell.row][cell.col] && G.sun >= def.cost && G.cooldowns[G.selectedSeed] <= G.time;
+      const terr = terrain(cell.row, cell.col);
+      const padHere = !!G.pads[cell.row][cell.col];
+      let ok = !G.grid[cell.row][cell.col] && G.sun >= def.cost && G.cooldowns[G.selectedSeed] <= G.time;
+      if (terr === 'water') ok = ok && (def.water || padHere) && !(def.pad && padHere);
+      else ok = ok && !def.water;
       ctx.fillStyle = ok ? 'rgba(255,255,255,0.3)' : 'rgba(255,60,60,0.28)';
       ctx.fillRect(LAWN_X + cell.col * CELL_W, LAWN_Y + cell.row * CELL_H, CELL_W, CELL_H);
       ctx.strokeStyle = ok ? '#fff' : '#e0483e';
@@ -742,15 +797,15 @@ function drawGame() {
       ctx.strokeRect(LAWN_X + cell.col * CELL_W + 1, LAWN_Y + cell.row * CELL_H + 1, CELL_W - 2, CELL_H - 2);
       ctx.globalAlpha = 0.55;
       const ctr = cellCenter(cell.row, cell.col);
-      drawPlant({ type: G.selectedSeed, row: cell.row, col: cell.col, x: ctr.x, y: ctr.y, hp: 1, maxHp: 1, armT: 99, blowT: 99, growT: 99, grown: true, armed: true, state: 'ready', recoil: 0, xp: 0, level: 1 });
+      drawPlant({ type: G.selectedSeed, row: cell.row, col: cell.col, x: ctr.x, y: ctr.y, hp: 1, maxHp: 1, armT: 99, blowT: 99, growT: 99, grown: true, armed: true, state: 'ready', recoil: 0, xp: 0, level: 1, born: 0 });
       ctx.globalAlpha = 1;
     }
   }
 
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const p = G.grid[r][c];
-      if (p) drawPlant(p);
+      if (G.pads[r][c]) drawPlant(G.pads[r][c]);
+      if (G.grid[r][c]) drawPlant(G.grid[r][c]);
     }
   }
   const sorted = G.zombies.slice().sort(function (a, b) { return a.row - b.row; });
@@ -783,6 +838,12 @@ function drawGame() {
   }
   ctx.globalAlpha = 1;
 
+  const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.95);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
   drawTopbar();
   drawBossBar();
   drawBottombar();
@@ -813,108 +874,147 @@ function drawGame() {
     ctx.fillText(G.message, LAWN_X + LAWN_W / 2, LAWN_Y + LAWN_H - 30);
   }
 }
+function drawZombieAt(z, yOverride) {
+  const t = ZOMBIE_TYPES[z.type];
+  const wob = Math.sin(G.time * 6 + z.phase) * 2;
+  const x = z.x;
+  const y = yOverride + wob * 0.4;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(x, yOverride + 8, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
+  const legSwing = Math.sin(G.time * 8 + z.phase) * 4;
+  ctx.fillStyle = '#3d4450';
+  ctx.fillRect(x - 10 + legSwing * 0.5, y - 4, 8, 10);
+  ctx.fillRect(x + 2 - legSwing * 0.5, y - 4, 8, 10);
+  ctx.fillStyle = t.shirt;
+  rr(x - 14, y - 26, 28, 26, 6);
+  ctx.fill();
+  ctx.fillStyle = t.skin;
+  ctx.beginPath(); ctx.arc(x + wob * 0.3, y - 36, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(x - 4 + wob * 0.3, y - 38, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 5 + wob * 0.3, y - 38, 2.2, 0, Math.PI * 2); ctx.fill();
+}
 
 function drawMenu() {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#7ec8ff');
-  g.addColorStop(0.55, '#a8e06a');
-  g.addColorStop(1, '#4a9a3a');
+  g.addColorStop(0.5, '#a8e06a');
+  g.addColorStop(0.78, '#4a9a3a');
+  g.addColorStop(1, '#3a7a2e');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
   for (let i = 0; i < 60; i++) {
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
     ctx.beginPath();
-    ctx.arc((i * 173) % W, (i * 97) % (H * 0.5), 2.5, 0, Math.PI * 2);
+    ctx.arc((i * 173) % W, (i * 97) % (H * 0.45), 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  for (let i = 0; i < 3; i++) {
+    const cx = ((G.time * 16 + i * 420) % (W + 260)) - 130;
+    ctx.beginPath();
+    ctx.ellipse(cx, 70 + i * 36, 40, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 28, 75 + i * 36, 26, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#3c7a30';
+  ctx.fillRect(0, H - 150, W, 150);
+  ctx.fillStyle = '#478c38';
+  ctx.fillRect(0, H - 150, W, 18);
+  ctx.fillStyle = '#6e4520';
+  for (let i = 0; i < 16; i++) ctx.fillRect(i * 84 + 20, H - 150, 10, 40);
+  const mz = { type: 'shambler', row: 0, x: W - ((G.time * 46) % (W + 300)) + 60, hp: 200, maxHp: 200, armor: 0, armorMax: 0, speed: 0, dmg: 0, dead: false, dying: 0, phase: 1, leapT: 0, slowT: 0, eating: null, flying: false, summonT: 99 };
+  drawZombieAt(mz, H - 78);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const tg = ctx.createLinearGradient(0, 110, 0, 200);
+  tg.addColorStop(0, '#3f7a22');
+  tg.addColorStop(1, '#2c4a1e');
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.font = 'bold 72px sans-serif';
-  ctx.fillText('GARDEN GUARDIANS', W / 2 + 4, 168 + 4);
-  ctx.fillStyle = '#2c4a1e';
+  ctx.fillText('GARDEN GUARDIANS', W / 2 + 4, 178 + 4);
+  ctx.fillStyle = tg;
   ctx.font = 'bold 72px sans-serif';
-  ctx.fillText('GARDEN GUARDIANS', W / 2, 168);
+  ctx.fillText('GARDEN GUARDIANS', W / 2, 178);
   ctx.font = '21px sans-serif';
   ctx.fillStyle = '#33501f';
-  ctx.fillText('An original lane-defense game — defend your yard from the shambling horde.', W / 2, 232);
-  drawSunIcon(W / 2 - 360, 162, 28, false);
-  drawSunIcon(W / 2 + 360, 162, 28, false);
-  drawPlant({ type: 'sunbloom', row: 0, col: 0, x: 200, y: 400, hp: 1, maxHp: 1, armT: 99, blowT: 99, growT: 99, grown: true, armed: true, state: 'ready', recoil: 0, xp: 0, level: 1 });
-  drawZombie({ type: 'boss', row: 0, x: W - 260, hp: 6000, maxHp: 6000, armor: 0, armorMax: 0, speed: 0, dmg: 0, dead: false, dying: 0, phase: 1, leapT: 0, slowT: 0, eating: null, flying: false, summonT: 99 });
-  button(W / 2 - 160, 310, 320, 56, 'Adventure', function () { G.state = 'levels'; });
-  button(W / 2 - 160, 378, 320, 56, 'Endless Yard', function () { startEndless(); });
-  button(W / 2 - 160, 446, 320, 56, 'Almanac', function () { G.state = 'almanac'; });
-  button(W / 2 - 160, 514, 320, 56, 'How to Play', function () { G.state = 'help'; });
+  ctx.fillText('An original lane-defense game — defend your yard from the shambling horde.', W / 2, 242);
+  drawSunIcon(W / 2 - 380, 172, 28, false);
+  drawSunIcon(W / 2 + 380, 172, 28, false);
+  miniPlant('sunbloom', 200, 400);
+  miniPlant('gnasher', 330, 400);
+  button(W / 2 - 160, 300, 320, 56, 'Adventure', function () { G.state = 'levels'; });
+  button(W / 2 - 160, 366, 320, 56, 'Endless Yard', function () { startEndless(); });
+  button(W / 2 - 160, 432, 320, 56, 'Almanac', function () { G.state = 'almanac'; });
+  button(W / 2 - 160, 498, 320, 56, 'How to Play', function () { G.state = 'help'; });
   const d = G.save.settings.difficulty;
-  button(W / 2 - 160, 582, 320, 48, 'Difficulty: ' + d.charAt(0).toUpperCase() + d.slice(1), function () {
+  button(W / 2 - 160, 564, 320, 48, 'Difficulty: ' + d.charAt(0).toUpperCase() + d.slice(1), function () {
     const order = ['easy', 'normal', 'hard'];
     G.save.settings.difficulty = order[(order.indexOf(G.save.settings.difficulty) + 1) % order.length];
     persist();
     beep(500, 0.06, 'sine', 0.03);
   }, { font: 'bold 16px sans-serif', bg: d === 'hard' ? '#8a3a2a' : d === 'easy' ? '#4a7a3a' : '#8a5a33' });
-  button(W - 140, H - 70, 120, 46, G.save.settings.mute ? 'Sound: off' : 'Sound: on', function () {
+  button(W - 150, H - 200, 130, 46, G.save.settings.mute ? 'Sound: off' : 'Sound: on', function () {
     G.save.settings.mute = !G.save.settings.mute;
     persist();
   }, { font: 'bold 13px sans-serif' });
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.font = '13px sans-serif';
-  ctx.fillText('All code, art and names are original · runs entirely in your browser · v3 · achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length, W / 2, H - 28);
+  ctx.fillText('All code, art and names are original · runs entirely in your browser · v4 · achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length + ' · levels won ' + Object.keys(G.save.completed).length + '/' + LEVELS.length, W / 2, H - 18);
 }
 
 function drawLevels() {
   ctx.fillStyle = '#22351c';
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#e8f0dc';
-  ctx.font = 'bold 40px sans-serif';
+  ctx.font = 'bold 34px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Adventure', W / 2, 56);
+  ctx.fillText('Adventure — ' + LEVELS.length + ' levels', W / 2, 42);
   const cards = LEVELS.map(function (L, i) { return { level: i, L: L }; });
   cards.push({ endless: true });
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
     const col = i % 3;
     const rowi = Math.floor(i / 3);
-    const x = 50 + col * 400;
-    const y = 96 + rowi * 172;
-    const w = 380, h = 152;
+    const x = 40 + col * 408;
+    const y = 72 + rowi * 134;
+    const w = 388, h = 122;
     if (card.endless) {
       button(x, y, w, h, '', function () { startEndless(); }, { bg: '#3a5a8a' });
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 24px sans-serif';
-      ctx.fillText('Endless Yard', x + w / 2, y + 44);
-      ctx.font = '15px sans-serif';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillText('Endless Yard', x + w / 2, y + 36);
+      ctx.font = '13px sans-serif';
       ctx.fillStyle = '#cfe0ff';
-      const unlockedN = Math.max(3, G.save.unlocked.length + 3);
-      ctx.fillText('Survive as long as you can · ' + unlockedN + ' seed packets · boss every 10th wave', x + w / 2, y + 82);
+      ctx.fillText('Survive as long as you can · boss every 10th wave', x + w / 2, y + 66);
       ctx.fillStyle = '#9fc0e8';
-      ctx.fillText('best: wave ' + (G.save.bestEndless || 0), x + w / 2, y + 114);
+      ctx.fillText('best: wave ' + (G.save.bestEndless || 0), x + w / 2, y + 94);
     } else {
       const locked = !levelUnlocked(card.level);
       const stars = G.save.completed[card.level] || 0;
       button(x, y, w, h, '', function () {
         if (!levelUnlocked(card.level)) { beep(140, 0.1, 'square', 0.04, 90); return; }
         startLevel(card.level);
-      }, { bg: locked ? '#4a4a42' : (card.L.day ? '#8a5a33' : '#3a4a7a') });
+      }, { bg: locked ? '#4a4a42' : (card.L.biome === 'pool' ? '#2a5a8a' : (card.L.day ? '#8a5a33' : '#3a4a7a')) });
       ctx.fillStyle = locked ? '#9a9a8a' : '#fff';
-      ctx.font = 'bold 22px sans-serif';
-      ctx.fillText(card.L.name + (card.L.boss ? ' 👑' : ''), x + w / 2, y + 40);
-      ctx.font = '14px sans-serif';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(card.L.name + (card.L.boss ? ' \uD83D\uDC51' : '') + (card.L.biome === 'pool' ? ' \uD83C\uDF0A' : ''), x + w / 2, y + 34);
+      ctx.font = '12px sans-serif';
       ctx.fillStyle = locked ? '#9a9a8a' : '#e8d8b8';
-      ctx.fillText((card.L.day ? 'Day' : 'Night') + ' · ' + card.L.waves + ' waves · ' + card.L.seeds.length + ' seed packets', x + w / 2, y + 74);
+      ctx.fillText((card.L.day ? 'Day' : 'Night') + (card.L.biome === 'pool' ? ' · Pool' : '') + ' · ' + card.L.waves + ' waves · ' + card.L.seeds.length + ' packets', x + w / 2, y + 62);
       if (locked) {
         ctx.fillStyle = '#c8c8b8';
-        ctx.font = '16px sans-serif';
-        ctx.fillText('Complete the previous level to unlock', x + w / 2, y + 112);
+        ctx.font = '14px sans-serif';
+        ctx.fillText('Complete the previous level to unlock', x + w / 2, y + 92);
       } else {
         ctx.fillStyle = '#ffd23f';
-        ctx.font = '22px sans-serif';
-        ctx.fillText(stars === 2 ? '★★' : stars === 1 ? '★☆' : '☆☆', x + w / 2, y + 114);
+        ctx.font = '20px sans-serif';
+        ctx.fillText(stars === 2 ? '★★' : stars === 1 ? '★☆' : '☆☆', x + w / 2, y + 94);
       }
     }
   }
-  button(W / 2 - 90, H - 66, 180, 46, 'Back', function () { G.state = 'menu'; });
+  button(W / 2 - 90, H - 52, 180, 40, 'Back', function () { G.state = 'menu'; });
 }
 
 function drawAlmanac() {
@@ -923,75 +1023,74 @@ function drawAlmanac() {
   ctx.fillStyle = '#e8f0dc';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText('Almanac', W / 2, 42);
-  ctx.font = 'bold 19px sans-serif';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillText('Almanac', W / 2, 38);
+  ctx.font = 'bold 18px sans-serif';
   ctx.textAlign = 'left';
   ctx.fillStyle = '#ffd23f';
-  ctx.fillText('Plants (' + SEED_ORDER.length + ')', 30, 82);
+  ctx.fillText('Plants (' + SEED_ORDER.length + ')', 20, 74);
   for (let i = 0; i < SEED_ORDER.length; i++) {
     const key = SEED_ORDER[i];
     const def = PLANT_TYPES[key];
-    const col = i % 8;
-    const rowi = Math.floor(i / 8);
-    const x = 20 + col * 156;
-    const y = 96 + rowi * 128;
-    const w = 148, h = 116;
+    const col = i % 9;
+    const rowi = Math.floor(i / 9);
+    const x = 14 + col * 139;
+    const y = 86 + rowi * 126;
+    const w = 131, h = 114;
     ctx.fillStyle = '#2c4226';
     rr(x, y, w, h, 8);
     ctx.fill();
     ctx.strokeStyle = '#4a6a3a';
     ctx.stroke();
     const locked = G.save.unlocked.indexOf(key) < 0 && G.seedList.indexOf(key) < 0;
-    ctx.fillStyle = def.body;
-    ctx.beginPath(); ctx.arc(x + 24, y + 26, 14, 0, Math.PI * 2); ctx.fill();
+    miniPlant(key, x + 22, y + 22);
     ctx.fillStyle = locked ? '#8a8a7a' : '#fff';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(locked ? '???' : def.name, x + 44, y + 22);
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText(locked ? '???' : def.name, x + 42, y + 20);
     ctx.fillStyle = '#9ab88a';
     ctx.font = '10px sans-serif';
-    ctx.fillText(locked ? 'undiscovered' : def.cost + ' sun · ' + def.cd + 's recharge', x + 44, y + 37);
+    ctx.fillText(locked ? 'undiscovered' : def.cost + ' sun · ' + def.cd + 's' + (def.water ? ' · water' : ''), x + 42, y + 34);
     ctx.fillStyle = locked ? '#7a8a6a' : '#c8d8b8';
-    const lines = wrapText(locked ? 'Win levels to unlock this packet.' : def.desc, 26);
-    for (let li = 0; li < Math.min(4, lines.length); li++) ctx.fillText(lines[li], x + 8, y + 58 + li * 13);
+    const lines = wrapText(locked ? 'Win levels to unlock this packet.' : def.desc, 24);
+    for (let li = 0; li < Math.min(4, lines.length); li++) ctx.fillText(lines[li], x + 7, y + 54 + li * 13);
   }
   ctx.fillStyle = '#ff8a7a';
-  ctx.font = 'bold 19px sans-serif';
-  ctx.fillText('Zombies (' + ZOMBIE_ORDER.length + ')', 30, 372);
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('Zombies (' + ZOMBIE_ORDER.length + ')', 20, 356);
   for (let i = 0; i < ZOMBIE_ORDER.length; i++) {
     const key = ZOMBIE_ORDER[i];
     const def = ZOMBIE_TYPES[key];
-    const col = i % 6;
-    const rowi = Math.floor(i / 6);
-    const x = 30 + col * 208;
-    const y = 386 + rowi * 128;
-    const w = 200, h = 116;
+    const col = i % 7;
+    const rowi = Math.floor(i / 7);
+    const x = 20 + col * 181;
+    const y = 368 + rowi * 126;
+    const w = 173, h = 114;
     ctx.fillStyle = '#33261f';
     rr(x, y, w, h, 8);
     ctx.fill();
     ctx.strokeStyle = '#6a4a3a';
     ctx.stroke();
     ctx.fillStyle = def.skin;
-    ctx.beginPath(); ctx.arc(x + 24, y + 26, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 22, y + 24, 13, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = def.shirt;
-    rr(x + 13, y + 38, 22, 20, 4);
+    rr(x + 12, y + 34, 20, 18, 4);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(def.name, x + 44, y + 22);
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText(def.name, x + 40, y + 20);
     ctx.fillStyle = '#d8b8a8';
     ctx.font = '10px sans-serif';
-    ctx.fillText('HP ' + (def.hp + (def.armor || 0)) + (def.armor ? ' (+' + def.armor + ' armor)' : '') + ' · spd ' + def.speed, x + 44, y + 37);
+    ctx.fillText('HP ' + (def.hp + (def.armor || 0)) + (def.armor ? ' (+' + def.armor + ')' : '') + ' · spd ' + def.speed, x + 40, y + 34);
     ctx.fillStyle = '#e8c8b8';
-    const lines = wrapText(def.desc, 32);
-    for (let li = 0; li < Math.min(4, lines.length); li++) ctx.fillText(lines[li], x + 8, y + 58 + li * 13);
+    const lines = wrapText(def.desc, 30);
+    for (let li = 0; li < Math.min(4, lines.length); li++) ctx.fillText(lines[li], x + 7, y + 54 + li * 13);
   }
   ctx.fillStyle = '#ffd23f';
-  ctx.font = 'bold 15px sans-serif';
+  ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'left';
   const earnedNames = ACHIEVEMENTS.filter(function (a) { return G.save.achievements.indexOf(a.id) >= 0; }).map(function (a) { return a.name; });
-  ctx.fillText('Achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length + (earnedNames.length ? ': ' + earnedNames.join(', ') : ''), 30, H - 92);
-  button(W / 2 - 90, H - 66, 180, 44, 'Back', function () { G.state = 'menu'; });
+  ctx.fillText('Achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length + (earnedNames.length ? ': ' + earnedNames.join(', ') : ''), 20, H - 84);
+  button(W / 2 - 90, H - 62, 180, 42, 'Back', function () { G.state = 'menu'; });
 }
 
 function drawHelp() {
@@ -1000,29 +1099,29 @@ function drawHelp() {
   ctx.fillStyle = '#e8f0dc';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText('How to Play', 70, 64);
-  ctx.font = '16px sans-serif';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillText('How to Play', 70, 60);
+  ctx.font = '15px sans-serif';
   const lines = [
     'Goal: stop the horde from reaching your house on the left. Each lane has one mower as a last resort.',
     '',
-    '• Sun (or moonlight at night) falls from the sky — click it to collect. Sunbloom/Sun Shroom produce extra sun.',
-    '• Click a seed packet (keys 1-9, 0, -, =), then click a lawn tile to plant. Packets cost sun and recharge.',
-    '• Shooters level up with kills (5 / 15 kills → Lv2 / Lv3): +damage and faster fire, shown as ★ above the plant.',
-    '• Shooters: Seed Spitter, Puff Spitter (short range), Double Spitter (2 seeds), Split Spitter (both ways),',
-    '   Frost Fern (slows), Melon Lob (lobbed 3x3 splash).',
-    '• Defense: Acorn Wall blocks. Thistle Pad hurts zombies standing on it. Tuber Trap is a contact mine.',
-    '• Explosives: Blastcap (3x3), Blaze Reed (clears the whole lane). Blover gusts its lane every 12s, pushing zombies back.',
-    '• Tricks: Diverter Onion changes the eater\'s lane when eaten. Gnasher swallows one zombie whole, then chews 20s.',
-    '• Zombies: Pylonhead/Tinhead/Screenback wear armor first. Leaper vaults one plant. Howler enrages at half HP.',
-    '   Balloon Flyer floats over plants, then lands. The Yard Boss (levels 1-5, 2-4 and every 10th endless wave) throws Imps.',
-    '• Clearing a wave without losses grants +50 sun. Win a level to unlock its seed packets and earn stars (2★ flawless).',
-    '• Difficulty (menu): easy / normal / hard changes enemy HP, speed and sunfall. Progress is saved in your browser.',
+    '• Sun (or moonlight at night) falls from the sky — click it to collect. Sunbloom / Sun Shroom produce extra sun.',
+    '• Click a seed packet (keys 1-9, 0, -, = for the first 12), then click a lawn tile to plant. Packets cost sun and recharge.',
+    '• Shooters level up with kills (5 / 15 kills → Lv2 / Lv3): more damage, faster fire, ★ above the plant.',
+    '• Shooters: Seed Spitter, Puff Spitter (short range), Double Spitter, Split Spitter (both ways), Frost Fern (slow),',
+    '   Melon Lob (3x3 splash), Reed Shooter (water only).',
+    '• Pool levels: the middle lanes are water. Plant a Lotus Pad first, then anything on top — or Reed Shooter directly.',
+    '• Defense: Acorn Wall, Thistle Pad (contact damage), Tuber Trap (mine). Explosives: Blastcap (3x3), Blaze Reed (lane).',
+    '• Tricks: Blover gusts its lane every 12s. Diverter Onion changes the eater\'s lane. Gnasher swallows one zombie whole.',
+    '• Zombies: Pylonhead/Tinhead/Screenback/Ducky wear armor. Leaper vaults one plant. Howler enrages at half HP.',
+    '   Balloon Flyer floats over plants then lands. The Yard Boss (crown levels, every 10th endless wave) throws Imps.',
+    '• Clearing a wave cleanly grants +50 sun. Win levels to unlock seed packets; 2★ for a flawless (no mower) win.',
+    '• Difficulty (menu): easy / normal / hard — changes enemy HP, speed and sunfall. Everything is saved in your browser.',
     '',
-    'Keys: 1-9,0,-,= select seed · S shovel · Esc/Space pause · bottom bar: pause, speed, sound, menu.'
+    'Keys: 1-9,0,-,= select seed · S shovel · Esc/Space pause · bottom bar: shovel, pause, speed, sound, menu.'
   ];
-  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], 70, 102 + i * 31);
-  button(W / 2 - 90, H - 62, 180, 46, 'Back', function () { G.state = 'menu'; });
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], 70, 96 + i * 30);
+  button(W / 2 - 90, H - 58, 180, 44, 'Back', function () { G.state = 'menu'; });
 }
 
 function drawPause() {
