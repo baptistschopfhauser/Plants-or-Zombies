@@ -1,4 +1,4 @@
-# Plants-or-Zombies — Garden Guardians v4
+# Plants-or-Zombies — Garden Guardians v5
 
 An original lane-based tower defense game for the browser (HTML5 canvas +
 vanilla JS, no dependencies, no external assets). All code, runtime-drawn
@@ -41,11 +41,17 @@ root folder) to get a shareable URL.
   (2★ = flawless, no mower lost), difficulty modes (easy/normal/hard)
 - 12 achievements with toast banners; localStorage progression (unlocks,
   stars, endless best, lifetime stats, settings)
-- Presentation: animated menu with marching zombie, level intro cards,
-  placement pop-in, hit flashes, particles, floaters, screen shake, sun
-  fly-to-counter, vignette, WebAudio SFX + tiny music loop (mutable),
-  1×/2× speed, ghost placement with terrain-aware validity, almanac,
-  level select, help, pause, win/lose — touch supported
+- Presentation (v5 art pass): cartoon outlines + highlights on every
+  plant/zombie, shaded wooden UI with hover states, Fredoka webfont with
+  fallback, seed packets with icon badges and cost pills, sun counter plaque,
+  top-right progress bar with flag + moving zombie marker, fog on the right
+  where zombies emerge, dirt path + picket fence, detailed house (siding,
+  shingles, chimney, door, windows), decorated lawn (stripes, grass tufts,
+  flowers), animated water, panel-based menu/pause/game-over screens,
+  animated menu with marching zombie, level intro banners, placement pop-in,
+  hit flash, particles, floaters, screen shake, sun fly-to-counter, vignette,
+  WebAudio SFX + tiny music loop (mutable), 1×/2× speed, ghost placement with
+  terrain-aware validity, almanac, level select, help — touch supported
 
 ## Controls
 
@@ -62,7 +68,8 @@ root folder) to get a shareable URL.
 - `style.css` — page styling
 - `data.js` — plant / zombie / level definitions
 - `game.js` — engine: simulation, terrain/pool rules, input, progression, achievements, music, main loop
-- `render.js` — all drawing and screens
+- `render.js` — drawing: entities, lawn, HUD, game scene
+- `screens.js` — menu / level select / almanac / help / overlays
 
 ## License
 
