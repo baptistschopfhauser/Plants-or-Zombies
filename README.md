@@ -1,4 +1,4 @@
-# Plants-or-Zombies — Garden Guardians v5
+# Plants-or-Zombies — Garden Guardians v7
 
 An original lane-based tower defense game for the browser (HTML5 canvas +
 vanilla JS, no dependencies, no external assets). All code, runtime-drawn
@@ -36,11 +36,22 @@ root folder) to get a shareable URL.
   Leaper (vaults a plant), Howler (enrages at half HP), Rusher, Goliath,
   Balloon Flyer (flies then lands), Ducky (water), Imp, and the summoning
   **Yard Boss** with HP bar (boss levels + every 10th endless wave)
-- 13 adventure levels (day/night/pool) + endless mode, lawnmowers, wave
-  banners, FINAL WAVE / BOSS alerts, +50 sun wave-clear bonus, stars
-  (2★ = flawless, no mower lost), difficulty modes (easy/normal/hard)
-- 12 achievements with toast banners; localStorage progression (unlocks,
-  stars, endless best, lifetime stats, settings)
+- Adventure in **3 chapters** (Front Yard / Night Watch / The Pool) with a
+  chapter-select screen and per-chapter level grids — 14 levels total
+  (day/night/pool) + endless mode, lawnmowers, wave banners, FINAL WAVE /
+  BOSS alerts, +50 sun +10c wave-clear bonus, stars (2★ = flawless),
+  difficulty modes (easy/normal/hard)
+- **Coins 🪙 economy**: earned per kill / wave / level win / endless wave
+- **Store**: 10 permanent upgrades (sun charm, damage polish, faster
+  recharge, XP fertilizer, coin magnet, starter sun, early seed unlocks)
+- **Greenhouse**: plant a coin crop (50c) that grows in real time (~3 min)
+  and harvest it for +40c
+- Seed packets are used up after one planting (click again to re-select)
+- 15 achievements with toast banners; localStorage progression (chapters,
+  unlocks, stars, coins, shop, greenhouse, stats, settings)
+- v7: rebalanced numbers (economy, speeds, HP, waves, cooldowns), and every
+  plant/zombie has a unique look (mohawk, rosy cheeks, crowns, clubs, horns,
+  pitchforks, beaks, sweatbands…)
 - Presentation (v5 art pass): cartoon outlines + highlights on every
   plant/zombie, shaded wooden UI with hover states, Fredoka webfont with
   fallback, seed packets with icon badges and cost pills, sun counter plaque,

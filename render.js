@@ -281,8 +281,10 @@ function drawTopbar() {
   ctx.fillStyle = '#1a1a1a';
   ctx.beginPath(); ctx.arc(hx - 2, by + 5, 1.2, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(hx + 2, by + 5, 1.2, 0, Math.PI * 2); ctx.fill();
-  txt('kills ' + G.save.stats.kills + ' · planted ' + G.save.stats.plants + ' · sun ' + G.save.stats.sun, rx, 116, '12px ' + FONT, '#d8b888', 'right', 'middle');
-  txt('achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length, rx, 140, '12px ' + FONT, '#d8b888', 'right', 'middle');
+  txt('kills ' + G.save.stats.kills + ' · planted ' + G.save.stats.plants + ' · sun ' + G.save.stats.sun, rx, 112, '12px ' + FONT, '#d8b888', 'right', 'middle');
+  drawCoinIcon(rx - 64, 134, 7);
+  txt('x ' + G.save.coins, rx, 134, 'bold 13px ' + FONT, '#ffd23f', 'right', 'middle');
+  txt('achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length, rx, 156, '12px ' + FONT, '#d8b888', 'right', 'middle');
   drawTooltip();
 }
 
@@ -537,6 +539,7 @@ function drawPlant(p) {
       txt(Math.ceil(p.chewT) + 's', x, y - 36, 'bold 12px ' + FONT, '#ffe9a8', 'center', 'middle');
     }
   }
+  drawPlantAccent(p, x, y, def, sway);
   if (p.level > 1) {
     txt('★'.repeat(p.level - 1), x, y - 54, 'bold 14px ' + FONT, '#ffd23f', 'center', 'middle');
   }
@@ -677,6 +680,7 @@ function drawZombie(z) {
     ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x + 10 * s, y - 20 * s); ctx.lineTo(x + 18 * s, y - 20 * s); ctx.stroke();
   }
+  drawZombieExtras(z, t, x, y, s, wob);
   const eyeCol = z.enraged ? '#e02a1a' : '#1a1a1a';
   circ(x - 4 * s + wob * 0.3, y - 38 * s, 2.4 * s, '#fff');
   circ(x + 5 * s + wob * 0.3, y - 38 * s, 2.4 * s, '#fff');
@@ -1035,5 +1039,189 @@ function drawGame() {
     ctx.lineWidth = 1.5;
     ctx.stroke();
     txt(G.message, LAWN_X + LAWN_W / 2, by + 17, 'bold 18px ' + FONT, '#ffe9a8', 'center', 'middle');
+  }
+}
+function drawCoinIcon(x, y, r) {
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.2, x, y, r);
+  g.addColorStop(0, '#ffe98a');
+  g.addColorStop(1, '#e0a020');
+  circ(x, y, r, g, '#a06a00', 2);
+  ctx.strokeStyle = '#a06a00';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, Math.PI * 2); ctx.stroke();
+  txt('C', x, y + 1, 'bold ' + Math.round(r * 1.2) + 'px ' + FONT, '#a06a00', 'center', 'middle', false);
+}
+
+function drawZombieExtras(z, t, x, y, s, wob) {
+  const hx = x + wob * 0.3;
+  if (z.type === 'shambler') {
+    ctx.strokeStyle = '#4a3a28'; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round';
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.moveTo(hx + i * 5 * s, y - 47 * s); ctx.lineTo(hx + i * 7 * s, y - 54 * s); ctx.stroke();
+    }
+  }
+  if (t.sweatband) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(hx - 12 * s, y - 45 * s, 24 * s, 5 * s);
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(hx - 12 * s, y - 45 * s, 24 * s, 5 * s);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 30 * s, y - 30 * s); ctx.lineTo(x - 44 * s, y - 33 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 30 * s, y - 22 * s); ctx.lineTo(x - 46 * s, y - 22 * s); ctx.stroke();
+  }
+  if (t.headband) {
+    ctx.fillStyle = '#e0483e';
+    ctx.fillRect(hx - 12 * s, y - 44 * s, 24 * s, 4 * s);
+    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.strokeRect(hx - 12 * s, y - 44 * s, 24 * s, 4 * s);
+  }
+  if (t.howl && !z.eating) {
+    ctx.fillStyle = '#5a1220';
+    ctx.beginPath(); ctx.ellipse(hx, y - 27 * s, 5 * s, 6 * s, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  if (t.pads) {
+    ctx.fillStyle = '#3a4a6a';
+    ctx.beginPath(); ctx.arc(x - 16 * s, y - 28 * s, 7 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 16 * s, y - 28 * s, 7 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5 * s; ctx.stroke();
+  }
+  if (t.crown) {
+    ctx.fillStyle = '#ffd23f';
+    ctx.beginPath();
+    ctx.moveTo(hx - 10 * s, y - 47 * s);
+    ctx.lineTo(hx - 10 * s, y - 58 * s);
+    ctx.lineTo(hx - 5 * s, y - 52 * s);
+    ctx.lineTo(hx, y - 61 * s);
+    ctx.lineTo(hx + 5 * s, y - 52 * s);
+    ctx.lineTo(hx + 10 * s, y - 58 * s);
+    ctx.lineTo(hx + 10 * s, y - 47 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#c8860a'; ctx.lineWidth = 1.5 * s; ctx.stroke();
+  }
+  if (t.club) {
+    ctx.strokeStyle = '#7a5a34'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 14 * s, y - 16 * s); ctx.lineTo(x + 30 * s, y - 44 * s); ctx.stroke();
+    ctx.fillStyle = '#8a6a42';
+    ctx.beginPath(); ctx.arc(x + 32 * s, y - 48 * s, 7 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5 * s; ctx.stroke();
+    ctx.fillStyle = '#555';
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(x + 32 * s + Math.cos(a) * 7 * s, y - 48 * s + Math.sin(a) * 7 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (t.horns) {
+    ctx.fillStyle = '#e8e0d0';
+    ctx.beginPath();
+    ctx.moveTo(hx - 10 * s, y - 46 * s);
+    ctx.lineTo(hx - 16 * s, y - 56 * s);
+    ctx.lineTo(hx - 5 * s, y - 49 * s);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(hx + 10 * s, y - 46 * s);
+    ctx.lineTo(hx + 16 * s, y - 56 * s);
+    ctx.lineTo(hx + 5 * s, y - 49 * s);
+    ctx.closePath(); ctx.fill();
+  }
+  if (t.fork) {
+    ctx.strokeStyle = '#9a9a9a'; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 12 * s, y - 10 * s); ctx.lineTo(x + 22 * s, y - 40 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 18 * s, y - 45 * s); ctx.lineTo(x + 26 * s, y - 45 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 20 * s, y - 49 * s); ctx.lineTo(x + 24 * s, y - 41 * s); ctx.stroke();
+  }
+  if (t.beak) {
+    ctx.fillStyle = '#f5b81e';
+    ctx.beginPath();
+    ctx.moveTo(hx - 4 * s, y - 32 * s);
+    ctx.lineTo(hx + 10 * s, y - 30 * s);
+    ctx.lineTo(hx - 4 * s, y - 27 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#c8860a'; ctx.lineWidth = 1 * s; ctx.stroke();
+  }
+  if (t.boss) {
+    ctx.strokeStyle = '#7a1010'; ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.moveTo(hx - 8 * s, y - 44 * s); ctx.lineTo(hx - 1 * s, y - 40 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx + 8 * s, y - 44 * s); ctx.lineTo(hx + 1 * s, y - 40 * s); ctx.stroke();
+  }
+}
+
+function drawPlantAccent(p, x, y, def, sway) {
+  if (p.type === 'spitter') {
+    ctx.fillStyle = def.leaf;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.ellipse(x + i * 5, y - 17 - Math.abs(i) * 2, 4, 7, i * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (p.type === 'puff') {
+    ctx.fillStyle = 'rgba(255,150,170,0.7)';
+    ctx.beginPath(); ctx.arc(x - 12, y + 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 4, y + 3, 3.5, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'doublespitter') {
+    ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 13, y - 15); ctx.lineTo(x - 4, y - 11); ctx.stroke();
+  } else if (p.type === 'fern') {
+    ctx.fillStyle = '#dff3ff';
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * 8, y + 13);
+      ctx.lineTo(x + i * 8 - 2, y + 20);
+      ctx.lineTo(x + i * 8 + 2, y + 20);
+      ctx.closePath(); ctx.fill();
+    }
+  } else if (p.type === 'melonlob') {
+    ctx.strokeStyle = def.dark; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 2, y - 24); ctx.quadraticCurveTo(x + 8, y - 34, x + 14, y - 26); ctx.stroke();
+    ctx.fillStyle = def.leaf;
+    ctx.beginPath(); ctx.ellipse(x + 14, y - 26, 5, 2.5, 0.4, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'acorn') {
+    ctx.strokeStyle = def.dark; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x - 16, y + 12); ctx.lineTo(x + 16, y + 12); ctx.stroke();
+  } else if (p.type === 'thistle') {
+    ctx.fillStyle = '#d8b8ff';
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2;
+      ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 5, y + 8 + Math.sin(a) * 5, 4, 2, a, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (p.type === 'blastcap') {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 2, y - 2); ctx.lineTo(x + 9, y + 5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 9, y - 2); ctx.lineTo(x + 2, y + 5); ctx.stroke();
+  } else if (p.type === 'blover') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x - 26, y - 4, 8, Math.PI * 0.6, Math.PI * 1.4); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x - 35, y - 4, 12, Math.PI * 0.6, Math.PI * 1.4); ctx.stroke();
+  } else if (p.type === 'onion') {
+    ctx.fillStyle = 'rgba(160,200,255,0.9)';
+    ctx.beginPath(); ctx.ellipse(x + 12, y + 8, 2.5, 4, 0.3, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'gnasher') {
+    ctx.fillStyle = def.dark;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * 7 - 3, y - 26);
+      ctx.lineTo(x + i * 7 + 3, y - 26);
+      ctx.lineTo(x + i * 7, y - 33);
+      ctx.closePath(); ctx.fill();
+    }
+  } else if (p.type === 'splitspitter') {
+    ctx.fillStyle = '#e0483e';
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y - 18); ctx.lineTo(x + 6, y - 18); ctx.lineTo(x + 2, y - 25);
+    ctx.closePath(); ctx.fill();
+  } else if (p.type === 'reed') {
+    ctx.fillStyle = '#7a4a2a';
+    ctx.beginPath(); ctx.ellipse(x + 2, y - 18, 4, 9, 0.1, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'sunbloom') {
+    ctx.fillStyle = '#c8860a';
+    ctx.beginPath(); ctx.arc(x - 2, y + 3, 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 3, y + 5, 1.2, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'sunshroom' && p.grown) {
+    ctx.fillStyle = def.leaf;
+    ctx.beginPath(); ctx.ellipse(x - 10, y - 14, 7, 3, -0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + 10, y - 12, 7, 3, 0.6, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'tubertrap' && p.armed) {
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - 8, y - 6); ctx.lineTo(x - 2, y - 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 9, y - 6); ctx.lineTo(x + 3, y - 3); ctx.stroke();
   }
 }

@@ -64,19 +64,25 @@ const G = {
     unlocked: [],
     achievements: [],
     bestEndless: 0,
-    stats: { kills: 0, plants: 0, bossKills: 0, sun: 0, shovels: 0 },
+    coins: 0,
+    shop: {},
+    greenhouse: { plantedAt: 0 },
+    stats: { kills: 0, plants: 0, bossKills: 0, sun: 0, shovels: 0, coinsEarned: 0, harvests: 0 },
     settings: { mute: false, speed: 1, difficulty: 'normal' }
   }
 };
 
-const SAVE_KEY = 'gg_save_v4';
+const SAVE_KEY = 'gg_save_v6';
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (s && s.settings) {
       G.save = Object.assign(G.save, s);
       G.save.settings = Object.assign({ mute: false, speed: 1, difficulty: 'normal' }, s.settings);
-      G.save.stats = Object.assign({ kills: 0, plants: 0, bossKills: 0, sun: 0, shovels: 0 }, s.stats);
+      G.save.stats = Object.assign({ kills: 0, plants: 0, bossKills: 0, sun: 0, shovels: 0, coinsEarned: 0, harvests: 0 }, s.stats);
+      G.save.shop = G.save.shop || {};
+      G.save.greenhouse = G.save.greenhouse || { plantedAt: 0 };
+      if (typeof G.save.coins !== 'number') G.save.coins = 0;
       if (!Array.isArray(G.save.achievements)) G.save.achievements = [];
       if (!G.save.completed) G.save.completed = {};
       if (!Array.isArray(G.save.unlocked)) G.save.unlocked = [];
@@ -91,8 +97,51 @@ loadSave();
 function diffFactor() {
   const d = G.save.settings.difficulty;
   if (d === 'easy') return { hp: 0.8, sp: 0.9, sun: 0.8 };
-  if (d === 'hard') return { hp: 1.25, sp: 1.12, sun: 1.3 };
+  if (d === 'hard') return { hp: 1.2, sp: 1.12, sun: 1.3 };
   return { hp: 1, sp: 1, sun: 1 };
+}
+
+function hasItem(id) { return !!(G.save.shop && G.save.shop[id]); }
+function sunMult() { return hasItem('sun_charm') ? 1.25 : 1; }
+function coinMult() { return hasItem('coin_magnet') ? 1.5 : 1; }
+function dmgItemMult() { return hasItem('dmg_polish') ? 1.1 : 1; }
+function cdMult() { return hasItem('cd_redux') ? 0.85 : 1; }
+function xpMult() { return hasItem('xp_fert') ? 1.5 : 1; }
+function zombieCoins(t) { return Math.max(1, Math.round((t.hp + (t.armor || 0)) / 400)); }
+function addCoins(n) {
+  const v = Math.round(n);
+  G.save.coins += v;
+  G.save.stats.coinsEarned += v;
+}
+function plantGreenhouse() {
+  if (G.save.greenhouse.plantedAt) return false;
+  if (G.save.coins < GREENHOUSE_COST) return false;
+  G.save.coins -= GREENHOUSE_COST;
+  G.save.greenhouse.plantedAt = Date.now();
+  persist();
+  return true;
+}
+function greenhouseStage() {
+  if (!G.save.greenhouse.plantedAt) return 0;
+  return clamp(Math.floor((Date.now() - G.save.greenhouse.plantedAt) / (GREENHOUSE_GROW_MS / 4)), 0, 4);
+}
+function harvestGreenhouse() {
+  if (greenhouseStage() < 4) return 0;
+  G.save.greenhouse.plantedAt = 0;
+  G.save.stats.harvests = (G.save.stats.harvests || 0) + 1;
+  addCoins(GREENHOUSE_YIELD);
+  persist();
+  checkAchievements();
+  return GREENHOUSE_YIELD;
+}
+function buyItem(id) {
+  const it = STORE_ITEMS.find(function (x) { return x.id === id; });
+  if (!it || hasItem(id) || G.save.coins < it.price) return false;
+  G.save.coins -= it.price;
+  G.save.shop[id] = true;
+  persist();
+  checkAchievements();
+  return true;
 }
 
 function terrain(row, col) {
@@ -183,7 +232,10 @@ const ACHIEVEMENTS = [
   { id: 'pool', name: 'Pool Party', desc: 'Win a pool level', test: function () { return false; } },
   { id: 'hoarder', name: 'Sun Hoarder', desc: 'Collect 500 sun in total', test: function () { return G.save.stats.sun >= 500; } },
   { id: 'marathon', name: 'Marathon', desc: 'Win 5 adventure levels', test: function () { return Object.keys(G.save.completed).length >= 5; } },
-  { id: 'shovelist', name: 'Rearranger', desc: 'Remove 20 plants with the shovel', test: function () { return G.save.stats.shovels >= 20; } }
+  { id: 'shovelist', name: 'Rearranger', desc: 'Remove 20 plants with the shovel', test: function () { return G.save.stats.shovels >= 20; } },
+  { id: 'rich', name: 'Deep Pockets', desc: 'Earn 1000 coins in total', test: function () { return G.save.stats.coinsEarned >= 1000; } },
+  { id: 'shopper', name: 'Shopper', desc: 'Own 3 store upgrades', test: function () { return Object.keys(G.save.shop || {}).length >= 3; } },
+  { id: 'green', name: 'Green Fingers', desc: 'Harvest the greenhouse once', test: function () { return (G.save.stats.harvests || 0) >= 1; } }
 ];
 function earn(id) {
   if (G.save.achievements.indexOf(id) >= 0) return;
@@ -274,8 +326,8 @@ function startLevel(i) {
   G.level = LEVELS[i];
   G.seedList = G.level.seeds.slice();
   resetField();
-  G.sun = G.level.startSun;
-  G.nextWaveT = 20;
+  G.sun = G.level.startSun + (hasItem('starter_sun') ? 50 : 0);
+  G.nextWaveT = 25;
   buildTotals();
   setBanner(G.level.name, true);
   G.state = 'playing';
@@ -286,11 +338,15 @@ function startEndless() {
   G.endless = true;
   G.level = { name: 'Endless Yard', endless: true, day: true, biome: 'lawn', waveInterval: 11, startSun: 150, skyEvery: 9 };
   const unlocked = ['sunbloom', 'spitter', 'acorn'];
+  if (hasItem('early_lotus')) unlocked.push('lotus');
+  if (hasItem('early_reed')) unlocked.push('reed');
+  if (hasItem('early_gnasher')) unlocked.push('gnasher');
+  if (hasItem('early_melon')) unlocked.push('melonlob');
   for (const k of G.save.unlocked) if (unlocked.indexOf(k) < 0) unlocked.push(k);
   G.seedList = unlocked;
   resetField();
   G.sun = G.level.startSun;
-  G.nextWaveT = 20;
+  G.nextWaveT = 25;
   G.totalZombies = Infinity;
   setBanner('Endless Yard', true);
   G.state = 'playing';
@@ -363,7 +419,8 @@ function spawnWave() {
   }
   if (prevCleared && !G.over) {
     G.sun += 50;
-    addFloater(65, 95, 'Wave bonus +50', '#ffd23f');
+    addCoins(10 * coinMult());
+    addFloater(65, 95, 'Wave bonus +50 sun +10c', '#ffd23f');
     beep(990, 0.1, 'sine', 0.04);
   }
 }
@@ -418,6 +475,7 @@ function fireProjectile(p, def) {
 
 function damageZombie(z, dmg, slow, src) {
   if (z.dead) return;
+  dmg *= dmgItemMult();
   z.flash = 0.09;
   if (z.armor > 0) {
     z.armor -= dmg;
@@ -432,11 +490,12 @@ function damageZombie(z, dmg, slow, src) {
     z.dying = 0.7;
     G.killed++;
     G.save.stats.kills++;
+    addCoins(zombieCoins(ZOMBIE_TYPES[z.type]) * coinMult());
     if (z.type === 'boss') { G.save.stats.bossKills++; earn('boss'); G.shake = Math.max(G.shake, 16); }
     addParticles(z.x, rowY(z.row) - 30, 14, '#8aa06a', 160, 5, 300);
     beep(200, 0.08, 'triangle', 0.03, 90);
     if (src && PLANT_TYPES[src.type] && PLANT_TYPES[src.type].canLevel) {
-      src.xp = (src.xp || 0) + 1;
+      src.xp = (src.xp || 0) + xpMult();
       const lv = plantLevel(src);
       if (lv > (src.level || 1)) {
         src.level = lv;
@@ -518,9 +577,10 @@ function tryPlace(row, col) {
   else G.grid[row][col] = p;
   G.sun -= def.cost;
   G.save.stats.plants++;
-  G.cooldowns[key] = G.time + def.cd;
+  G.cooldowns[key] = G.time + def.cd * cdMult();
   addParticles(ctr.x, ctr.y, 8, '#c8e89a', 120, 5, 250);
   beep(220, 0.09, 'square', 0.04, 140);
+  G.selectedSeed = null;
 }
 
 function winGame() {
@@ -535,6 +595,7 @@ function winGame() {
     if (stars > prev) G.save.completed[G.levelIndex] = stars;
     if (G.mowersLost === 0) earn('flawless');
     if (G.level.biome === 'pool') earn('pool');
+    addCoins(50 + (G.mowersLost === 0 ? 25 : 0));
     for (const k of G.level.seeds) {
       if (G.save.unlocked.indexOf(k) < 0) G.save.unlocked.push(k);
     }
@@ -554,7 +615,11 @@ function loseGame() {
   G.overT = 0;
   G.state = 'over';
   G.shake = 14;
-  if (G.endless && G.wave > (G.save.bestEndless || 0)) { G.save.bestEndless = G.wave; persist(); }
+  if (G.endless) {
+    if (G.wave > (G.save.bestEndless || 0)) G.save.bestEndless = G.wave;
+    addCoins(G.wave * 2);
+    persist();
+  }
   beep(300, 0.3, 'sawtooth', 0.07, 120);
   setTimeout(function () { beep(200, 0.3, 'sawtooth', 0.07, 80); }, 250);
   setTimeout(function () { beep(120, 0.5, 'sawtooth', 0.07, 50); }, 500);
@@ -566,7 +631,7 @@ function update(dt) {
   if (G.bannerT > 0) G.bannerT -= dt;
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt * 22);
   G.achT -= dt;
-  if (G.achT <= 0) { G.achT = 0.5; checkAchievements(); }
+  if (G.achT <= 0) { G.achT = 0.5; checkAchievements(); persist(); }
 
   const night = G.level && !G.level.day;
   const df = diffFactor();
@@ -576,7 +641,7 @@ function update(dt) {
     G.suns.push({
       x: rand(LAWN_X + 30, RIGHT_X - 30), y: LAWN_Y - 34, vy: 36,
       targetY: rand(LAWN_Y + 50, LAWN_Y + LAWN_H - 50),
-      value: 25, life: 9, sky: true, got: false, fly: false, night: night
+      value: Math.round(25 * sunMult()), life: 9, sky: true, got: false, fly: false, night: night
     });
   }
 
@@ -605,7 +670,7 @@ function update(dt) {
         p.sunT -= dt;
         if (p.sunT <= 0) {
           p.sunT = every;
-          spawnSunAt(p.x, p.y, amount, night);
+          spawnSunAt(p.x, p.y, Math.round(amount * sunMult()), night);
           beep(880, 0.08, 'sine', 0.03);
         }
       } else if (def.canLevel) {
@@ -674,6 +739,7 @@ function update(dt) {
             z.dying = 0.5;
             G.killed++;
             G.save.stats.kills++;
+            addCoins(zombieCoins(ZOMBIE_TYPES[z.type]) * coinMult());
             if (z.type === 'boss') { G.save.stats.bossKills++; earn('boss'); }
             p.state = 'chewing';
             p.chewT = def.chew;
@@ -814,6 +880,7 @@ function update(dt) {
         z.dying = 0.4;
         G.killed++;
         G.save.stats.kills++;
+        addCoins(zombieCoins(ZOMBIE_TYPES[z.type]) * coinMult());
         if (z.type === 'boss') { G.save.stats.bossKills++; earn('boss'); }
         addParticles(z.x, rowY(ri) - 30, 10, '#8aa06a', 150, 5, 250);
       }
