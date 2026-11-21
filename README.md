@@ -1,4 +1,4 @@
-# Plants-or-Zombies — Garden Guardians v7
+# Plants-or-Zombies — Garden Guardians v8
 
 An original lane-based tower defense game for the browser (HTML5 canvas +
 vanilla JS, no dependencies, no external assets). All code, runtime-drawn
@@ -21,7 +21,7 @@ root folder) to get a shareable URL.
 
 - 5×9 lawn, sun/moonlight economy (click to collect), 18 seed packets with
   cost + recharge cooldowns, hover tooltips and mini plant icons
-- **Plant leveling:** shooter plants gain XP per kill (5/15 → Lv2/Lv3) for
+- **Plant leveling:** shooter plants gain XP per kill (4/10 → Lv2/Lv3) for
   more damage and faster fire (★ icons)
 - **Pool biome** (levels 3-1 to 3-3): middle lanes are animated water —
   plant a Lotus Pad first, then anything on top, or Reed Shooter directly;
@@ -56,6 +56,17 @@ root folder) to get a shareable URL.
   as an animated scene (sky, hills, glass house with shine, 5 growth stages
   with sparkles, progress bar); Almanac with Plants/Zombies tabs, big cards
   and an achievements strip
+- v8 balance pass (single `BAL` constant block in `game.js`): zombies have
+  ~15% less HP, move 5% slower and bite 10% weaker; waves are ~20% smaller
+  (final wave 25% smaller); sky sun falls faster and is worth +15%; plants
+  deal +15% damage; plant XP arrives +25% faster; every level starts with
+  +25 bonus sun; hard mode scales more gently (HP ×1.15 / speed ×1.08 /
+  sun ×1.3)
+- v8 graphics upgrade: bigger plants (+12%) and zombies (+8%); richer lawn
+  (radial light, cell borders, grass tufts, flowers, pebbles, animated water
+  sparkles); right edge redesigned as a stone path with bushes, a tree and a
+  fence; house gains fence, mailbox and flower bed; ambient dust motes /
+  fireflies floating over the scene
 - Presentation (v5 art pass): cartoon outlines + highlights on every
   plant/zombie, shaded wooden UI with hover states, Fredoka webfont with
   fallback, seed packets with icon badges and cost pills, sun counter plaque,

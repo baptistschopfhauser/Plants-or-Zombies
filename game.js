@@ -97,7 +97,7 @@ loadSave();
 function diffFactor() {
   const d = G.save.settings.difficulty;
   if (d === 'easy') return { hp: 0.8, sp: 0.9, sun: 0.8 };
-  if (d === 'hard') return { hp: 1.2, sp: 1.12, sun: 1.3 };
+  if (d === 'hard') return { hp: 1.15, sp: 1.08, sun: 1.3 };
   return { hp: 1, sp: 1, sun: 1 };
 }
 
@@ -107,6 +107,7 @@ function coinMult() { return hasItem('coin_magnet') ? 1.5 : 1; }
 function dmgItemMult() { return hasItem('dmg_polish') ? 1.1 : 1; }
 function cdMult() { return hasItem('cd_redux') ? 0.85 : 1; }
 function xpMult() { return hasItem('xp_fert') ? 1.5 : 1; }
+const BAL = { zHp: 0.85, zSp: 0.95, zDmg: 0.9, sunRate: 0.85, sunAmt: 1.15, wave: 0.8, final: 0.75, plantDmg: 1.15, xp: 1.25 };
 function zombieCoins(t) { return Math.max(1, Math.round((t.hp + (t.armor || 0)) / 400)); }
 function addCoins(n) {
   const v = Math.round(n);
@@ -292,11 +293,11 @@ function resetField() {
 function waveCount(w) {
   const L = G.level;
   if (L.endless) {
-    if (w % 10 === 0) return 12 + w;
-    return Math.min(2 + Math.floor(w * 0.9), 10);
+    if (w % 10 === 0) return Math.round((12 + w) * BAL.final);
+    return Math.max(1, Math.round(Math.min(2 + Math.floor(w * 0.9), 10) * BAL.wave));
   }
-  if (w === L.waves) return L.finalCount;
-  return Math.max(1, Math.round(w * L.waveSize + (G.levelIndex >= 0 ? G.levelIndex * 0.5 : 0)));
+  if (w === L.waves) return Math.max(2, Math.round(L.finalCount * BAL.final));
+  return Math.max(1, Math.round((w * L.waveSize + (G.levelIndex >= 0 ? G.levelIndex * 0.5 : 0)) * BAL.wave));
 }
 
 function wavePool(w) {
@@ -326,7 +327,7 @@ function startLevel(i) {
   G.level = LEVELS[i];
   G.seedList = G.level.seeds.slice();
   resetField();
-  G.sun = G.level.startSun + (hasItem('starter_sun') ? 50 : 0);
+  G.sun = G.level.startSun + 25 + (hasItem('starter_sun') ? 50 : 0);
   G.nextWaveT = 25;
   buildTotals();
   setBanner(G.level.name, true);
@@ -369,12 +370,12 @@ function spawnZombie(typeKey, row) {
     type: typeKey,
     row: row,
     x: RIGHT_X + rand(40, 330),
-    hp: Math.round(t.hp * df.hp),
-    maxHp: Math.round((t.hp + (t.armor || 0)) * df.hp),
-    armor: Math.round((t.armor || 0) * df.hp),
-    armorMax: Math.round((t.armor || 0) * df.hp),
-    speed: t.speed * df.sp * rand(0.92, 1.08),
-    dmg: t.dmg,
+    hp: Math.round(t.hp * df.hp * BAL.zHp),
+    maxHp: Math.round((t.hp + (t.armor || 0)) * df.hp * BAL.zHp),
+    armor: Math.round((t.armor || 0) * df.hp * BAL.zHp),
+    armorMax: Math.round((t.armor || 0) * df.hp * BAL.zHp),
+    speed: t.speed * df.sp * BAL.zSp * rand(0.92, 1.08),
+    dmg: Math.round(t.dmg * BAL.zDmg),
     slowT: 0,
     flash: 0,
     eating: null,
@@ -435,7 +436,7 @@ function zombieInRange(p, maxDist, both) {
   return false;
 }
 
-const LEVEL_XP = [5, 15];
+const LEVEL_XP = [4, 10];
 function plantLevel(p) { return p.xp >= LEVEL_XP[1] ? 3 : p.xp >= LEVEL_XP[0] ? 2 : 1; }
 function dmgMul(p) { return [1, 1.3, 1.6][plantLevel(p) - 1]; }
 function rateMul(p) { return [1, 0.92, 0.85][plantLevel(p) - 1]; }
@@ -475,7 +476,7 @@ function fireProjectile(p, def) {
 
 function damageZombie(z, dmg, slow, src) {
   if (z.dead) return;
-  dmg *= dmgItemMult();
+  dmg *= dmgItemMult() * BAL.plantDmg;
   z.flash = 0.09;
   if (z.armor > 0) {
     z.armor -= dmg;
@@ -495,7 +496,7 @@ function damageZombie(z, dmg, slow, src) {
     addParticles(z.x, rowY(z.row) - 30, 14, '#8aa06a', 160, 5, 300);
     beep(200, 0.08, 'triangle', 0.03, 90);
     if (src && PLANT_TYPES[src.type] && PLANT_TYPES[src.type].canLevel) {
-      src.xp = (src.xp || 0) + xpMult();
+      src.xp = (src.xp || 0) + xpMult() * BAL.xp;
       const lv = plantLevel(src);
       if (lv > (src.level || 1)) {
         src.level = lv;
@@ -637,11 +638,11 @@ function update(dt) {
   const df = diffFactor();
   G.skySunT -= dt;
   if (G.skySunT <= 0) {
-    G.skySunT = G.level.skyEvery * df.sun * rand(0.8, 1.2);
+    G.skySunT = G.level.skyEvery * df.sun * BAL.sunRate * rand(0.8, 1.2);
     G.suns.push({
       x: rand(LAWN_X + 30, RIGHT_X - 30), y: LAWN_Y - 34, vy: 36,
       targetY: rand(LAWN_Y + 50, LAWN_Y + LAWN_H - 50),
-      value: Math.round(25 * sunMult()), life: 9, sky: true, got: false, fly: false, night: night
+      value: Math.round(25 * sunMult() * BAL.sunAmt), life: 9, sky: true, got: false, fly: false, night: night
     });
   }
 
@@ -670,7 +671,7 @@ function update(dt) {
         p.sunT -= dt;
         if (p.sunT <= 0) {
           p.sunT = every;
-          spawnSunAt(p.x, p.y, Math.round(amount * sunMult()), night);
+          spawnSunAt(p.x, p.y, Math.round(amount * sunMult() * BAL.sunAmt), night);
           beep(880, 0.08, 'sine', 0.03);
         }
       } else if (def.canLevel) {
