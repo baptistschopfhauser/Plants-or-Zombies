@@ -52,6 +52,10 @@ root folder) to get a shareable URL.
 - v7: rebalanced numbers (economy, speeds, HP, waves, cooldowns), and every
   plant/zombie has a unique look (mohawk, rosy cheeks, crowns, clubs, horns,
   pitchforks, beaks, sweatbands…)
+- v7 UI redesign: Store with large hoverable cards + coin plaque; Greenhouse
+  as an animated scene (sky, hills, glass house with shine, 5 growth stages
+  with sparkles, progress bar); Almanac with Plants/Zombies tabs, big cards
+  and an achievements strip
 - Presentation (v5 art pass): cartoon outlines + highlights on every
   plant/zombie, shaded wooden UI with hover states, Fredoka webfont with
   fallback, seed packets with icon badges and cost pills, sun counter plaque,

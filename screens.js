@@ -1,6 +1,7 @@
 'use strict';
 
 G.chapterIndex = 0;
+G.almanacTab = 'plants';
 
 function drawZombieAt(z, yOverride) {
   const t = ZOMBIE_TYPES[z.type];
@@ -185,198 +186,272 @@ function drawChapterLevels() {
 
 function drawStore() {
   screenBg(false);
-  txt('Store', W / 2, 64, 'bold 34px ' + FONT, '#2c4a1e', 'center', 'middle', false);
-  panel(W / 2 + 130, 30, 220, 56, 'rgba(247,232,192,0.95)', '#c8860a');
-  drawCoinIcon(W / 2 + 158, 58, 14);
-  txt('x ' + G.save.coins, W / 2 + 182, 59, 'bold 22px ' + FONT, '#7a4a00', 'left', 'middle', false);
-  txt('Earn coins by stopping zombies, clearing waves and winning levels.', W / 2, 112, '15px ' + FONT, '#3c5a2c', 'center', 'middle', false);
+  ctx.fillStyle = 'rgba(60,38,18,0.94)';
+  ctx.fillRect(0, 0, W, 96);
+  ctx.fillStyle = '#3a2410';
+  ctx.fillRect(0, 96, W, 5);
+  txt('\uD83D\uDED2  Store', 30, 52, 'bold 34px ' + FONT, '#ffe9c8', 'left', 'middle');
+  txt('Permanent upgrades — buy once, keep forever', 330, 56, '15px ' + FONT, '#d8b888', 'left', 'middle');
+  panel(W - 264, 18, 234, 60, 'rgba(247,232,192,0.96)', '#c8860a');
+  drawCoinIcon(W - 234, 48, 15);
+  txt('x ' + G.save.coins, W - 208, 49, 'bold 22px ' + FONT, '#7a4a00', 'left', 'middle', false);
   for (let i = 0; i < STORE_ITEMS.length; i++) {
     const it = STORE_ITEMS[i];
     const col = i % 5;
     const rowi = Math.floor(i / 5);
     const x = 30 + col * 246;
-    const y = 140 + rowi * 250;
-    const w = 232, h = 232;
+    const y = 122 + rowi * 268;
+    const w = 232, h = 250;
     const owned = hasItem(it.id);
-    panel(x, y, w, h, owned ? 'rgba(52,80,44,0.97)' : 'rgba(42,36,22,0.97)', owned ? '#7ac86a' : '#c8860a');
-    txt(it.icon, x + w / 2, y + 44, '36px ' + FONT, '#fff', 'center', 'middle', false);
-    txt(it.name, x + w / 2, y + 86, 'bold 16px ' + FONT, '#ffe9c8', 'center', 'middle');
-    const lines = wrapText(it.desc, 26);
+    const hover = G.mouse.x >= x && G.mouse.x <= x + w && G.mouse.y >= y && G.mouse.y <= y + h;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    rr(x + 3, y + 4, w, h, 12);
+    ctx.fill();
+    const cg = ctx.createLinearGradient(0, y, 0, y + h);
+    if (owned) { cg.addColorStop(0, '#3c6034'); cg.addColorStop(1, '#2c4a26'); }
+    else { cg.addColorStop(0, '#4a3a24'); cg.addColorStop(1, '#33270f'); }
+    ctx.fillStyle = cg;
+    rr(x, y, w, h, 12);
+    ctx.fill();
+    ctx.strokeStyle = owned ? '#7ac86a' : hover ? '#ffd23f' : '#c8860a';
+    ctx.lineWidth = hover && !owned ? 3 : 2;
+    ctx.stroke();
+    circ(x + w / 2, y + 48, 30, 'rgba(255,255,255,0.1)', INK, 2);
+    txt(it.icon, x + w / 2, y + 50, '34px ' + FONT, '#fff', 'center', 'middle', false);
+    txt(it.name, x + w / 2, y + 100, 'bold 17px ' + FONT, '#ffe9c8', 'center', 'middle');
+    const lines = wrapText(it.desc, 24);
     ctx.font = '12px ' + FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#d8e8c8';
-    for (let li = 0; li < Math.min(3, lines.length); li++) ctx.fillText(lines[li], x + w / 2, y + 112 + li * 15);
+    ctx.fillStyle = '#c8d8b8';
+    for (let li = 0; li < Math.min(3, lines.length); li++) ctx.fillText(lines[li], x + w / 2, y + 128 + li * 16);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 20, y + 186); ctx.lineTo(x + w - 20, y + 186); ctx.stroke();
     if (owned) {
-      box(x + w / 2 - 46, y + h - 66, 92, 34, 8, '#3f7a30', INK, 2);
-      txt('OWNED ✓', x + w / 2, y + h - 48, 'bold 15px ' + FONT, '#d8ffd0', 'center', 'middle');
+      box(x + w / 2 - 52, y + h - 54, 104, 38, 9, '#3f7a30', INK, 2);
+      txt('\u2713 OWNED', x + w / 2, y + h - 34, 'bold 15px ' + FONT, '#d8ffd0', 'center', 'middle');
     } else {
       const afford = G.save.coins >= it.price;
-      button(x + 18, y + h - 66, w - 36, 34, '', function () {
+      button(x + 16, y + h - 54, w - 32, 38, '', function () {
         if (buyItem(it.id)) { beep(880, 0.1, 'square', 0.05); setTimeout(function () { beep(1174, 0.12, 'square', 0.05); }, 100); }
         else beep(140, 0.1, 'square', 0.04, 90);
-      }, { bg: afford ? '#c8860a' : '#6a5a44', bgDark: afford ? '#a06a00' : '#554733', bgHover: '#e0a020' });
-      drawCoinIcon(x + w / 2 - 34, y + h - 49, 9);
-      txt(String(it.price), x + w / 2 - 20, y + h - 48, 'bold 16px ' + FONT, '#fff', 'left', 'middle');
+      }, { bg: afford ? '#c8860a' : '#5a4a38', bgDark: afford ? '#a06a00' : '#463a2c', bgHover: '#e0a020' });
+      drawCoinIcon(x + w / 2 - 42, y + h - 35, 10);
+      txt(String(it.price), x + w / 2 - 26, y + h - 34, 'bold 17px ' + FONT, '#fff', 'left', 'middle');
     }
   }
-  button(W / 2 - 90, H - 72, 180, 44, 'Back', function () { G.state = 'menu'; }, { font: 'bold 17px ' + FONT });
+  txt('Earn coins by stopping zombies, clearing waves cleanly and winning levels.', W / 2, H - 116, '14px ' + FONT, '#3c5a2c', 'center', 'middle', false);
+  button(W / 2 - 90, H - 90, 180, 44, 'Back', function () { G.state = 'menu'; }, { font: 'bold 17px ' + FONT });
 }
-
 function drawGreenhouse() {
   screenBg(false);
-  txt('Greenhouse', W / 2, 64, 'bold 34px ' + FONT, '#2c4a1e', 'center', 'middle', false);
-  panel(W / 2 + 130, 30, 220, 56, 'rgba(247,232,192,0.95)', '#c8860a');
-  drawCoinIcon(W / 2 + 158, 58, 14);
-  txt('x ' + G.save.coins, W / 2 + 182, 59, 'bold 22px ' + FONT, '#7a4a00', 'left', 'middle', false);
-  const hx = W / 2 - 260, hy = 150, hw = 520, hh = 380;
-  ctx.fillStyle = '#6e5230';
-  ctx.fillRect(hx - 20, hy + hh - 30, hw + 40, 30);
-  ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(hx - 20, hy + hh - 30, hw + 40, 30);
-  ctx.fillStyle = '#8a6a42';
-  ctx.fillRect(hx, hy + 60, hw, hh - 90);
-  ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(hx, hy + 60, hw, hh - 90);
-  ctx.fillStyle = 'rgba(170,215,255,0.28)';
-  ctx.fillRect(hx + 8, hy + 68, hw - 16, hh - 106);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillStyle = '#2e6028';
+  ctx.beginPath(); ctx.ellipse(W / 2 - 420, H - 118, 420, 90, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#35702e';
+  ctx.beginPath(); ctx.ellipse(W / 2 + 430, H - 118, 460, 100, 0, Math.PI, 0); ctx.fill();
+  txt('Greenhouse', W / 2, 62, 'bold 34px ' + FONT, '#2c4a1e', 'center', 'middle', false);
+  panel(W - 264, 30, 234, 60, 'rgba(247,232,192,0.96)', '#c8860a');
+  drawCoinIcon(W - 234, 60, 15);
+  txt('x ' + G.save.coins, W - 208, 61, 'bold 22px ' + FONT, '#7a4a00', 'left', 'middle', false);
+  const hx = W / 2 - 280, hy = 150, hw = 560, hh = 370;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(hx + hw / 2, hy + hh + 8, hw / 2 + 30, 16, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5a3a1e';
+  ctx.fillRect(hx - 24, hy + hh - 36, hw + 48, 36);
+  ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(hx - 24, hy + hh - 36, hw + 48, 36);
+  ctx.fillStyle = '#7a5228';
+  ctx.fillRect(hx, hy + 70, hw, hh - 106);
+  ctx.fillStyle = 'rgba(170,215,255,0.24)';
+  ctx.fillRect(hx + 6, hy + 76, hw - 12, hh - 118);
+  ctx.fillStyle = '#7a5228';
   ctx.beginPath();
-  ctx.moveTo(hx + 30, hy + hh - 44);
-  ctx.lineTo(hx + 110, hy + 68);
-  ctx.lineTo(hx + 150, hy + 68);
-  ctx.lineTo(hx + 70, hy + hh - 44);
+  ctx.moveTo(hx - 18, hy + 72);
+  ctx.lineTo(hx + hw / 2, hy - 6);
+  ctx.lineTo(hx + hw + 18, hy + 72);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = '#8a6a42';
+  ctx.fillStyle = 'rgba(170,215,255,0.24)';
   ctx.beginPath();
-  ctx.moveTo(hx - 14, hy + 62);
-  ctx.lineTo(hx + hw / 2, hy);
-  ctx.lineTo(hx + hw + 14, hy + 62);
+  ctx.moveTo(hx + 4, hy + 70);
+  ctx.lineTo(hx + hw / 2, hy + 4);
+  ctx.lineTo(hx + hw - 4, hy + 70);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = 'rgba(170,215,255,0.28)';
+  ctx.strokeStyle = INK; ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(hx + 6, hy + 60);
-  ctx.lineTo(hx + hw / 2, hy + 8);
-  ctx.lineTo(hx + hw - 6, hy + 60);
+  ctx.moveTo(hx - 18, hy + 72);
+  ctx.lineTo(hx + hw / 2, hy - 6);
+  ctx.lineTo(hx + hw + 18, hy + 72);
   ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#8a6a42'; ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.strokeRect(hx, hy + 70, hw, hh - 106);
+  ctx.strokeStyle = '#7a5228'; ctx.lineWidth = 5;
   for (let i = 1; i < 4; i++) {
-    ctx.beginPath(); ctx.moveTo(hx + i * hw / 4, hy + 60); ctx.lineTo(hx + i * hw / 4, hy + hh - 30); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx + i * hw / 4, hy + 72); ctx.lineTo(hx + i * hw / 4, hy + hh - 36); ctx.stroke();
   }
-  ctx.beginPath(); ctx.moveTo(hx, hy + 60); ctx.lineTo(hx, hy + hh - 30); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(hx + hw, hy + 60); ctx.lineTo(hx + hw, hy + hh - 30); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx, hy + 130); ctx.lineTo(hx + hw, hy + 130); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx + hw * 0.72, hy + 70); ctx.lineTo(hx + hw * 0.72, hy + hh - 36); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx + hw * 0.72, hy + 200); ctx.lineTo(hx + hw, hy + 200); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(hx + 40, hy + hh - 50); ctx.lineTo(hx + 150, hy + 84); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx + 80, hy + hh - 50); ctx.lineTo(hx + 185, hy + 88); ctx.stroke();
+  ctx.fillStyle = '#4a3420';
+  ctx.fillRect(hx + 30, hy + hh - 76, hw - 60, 40);
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2; ctx.strokeRect(hx + 30, hy + hh - 76, hw - 60, 40);
   const stage = greenhouseStage();
   const planted = !!G.save.greenhouse.plantedAt;
-  const potX = hx + hw / 2, potY = hy + hh - 70;
-  ctx.fillStyle = '#a0522d';
-  ctx.beginPath();
-  ctx.moveTo(potX - 40, potY);
-  ctx.lineTo(potX + 40, potY);
-  ctx.lineTo(potX + 30, potY + 34);
-  ctx.lineTo(potX - 30, potY + 34);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
+  const potX = hx + hw / 2, potY = hy + hh - 96;
   if (planted) {
-    const sc = 0.45 + stage * 0.16;
+    const sc = 0.32 + stage * 0.2;
     ctx.save();
-    ctx.translate(potX, potY);
+    ctx.translate(potX, potY + 20);
     ctx.scale(sc, sc);
-    ctx.translate(-potX, -potY);
-    miniPlant('sunbloom', potX, potY - 10);
+    ctx.translate(-potX, -(potY + 20));
+    miniPlant('sunbloom', potX, potY);
     ctx.restore();
     if (stage >= 4) {
-      const bob = Math.sin(G.time * 3) * 4;
-      drawCoinIcon(potX + 55, potY - 60 + bob, 14);
-      txt('+' + GREENHOUSE_YIELD, potX + 55, potY - 30 + bob, 'bold 15px ' + FONT, '#ffd23f', 'center', 'middle');
+      for (let i = 0; i < 6; i++) {
+        const a = G.time * 1.5 + i * 1.05;
+        const sx = potX + Math.cos(a) * (50 + i * 8);
+        const sy = potY - 50 + Math.sin(a * 1.3) * (30 + i * 5);
+        ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(G.time * 3 + i));
+        circ(sx, sy, 3, '#ffe98a', '#c8860a', 1);
+      }
+      ctx.globalAlpha = 1;
+      const bob = Math.sin(G.time * 3) * 5;
+      drawCoinIcon(potX + 70, potY - 70 + bob, 15);
+      txt('+' + GREENHOUSE_YIELD, potX + 70, potY - 40 + bob, 'bold 16px ' + FONT, '#ffd23f', 'center', 'middle');
     }
   } else {
-    txt('empty pot', potX, potY - 30, '15px ' + FONT, 'rgba(0,0,0,0.4)', 'center', 'middle', false);
+    ctx.fillStyle = '#5a4228';
+    ctx.beginPath(); ctx.ellipse(potX, potY + 22, 26, 10, 0, 0, Math.PI * 2); ctx.fill();
+    txt('empty soil', potX, potY - 14, '14px ' + FONT, 'rgba(0,0,0,0.45)', 'center', 'middle', false);
   }
   const frac = planted ? clamp((Date.now() - G.save.greenhouse.plantedAt) / GREENHOUSE_GROW_MS, 0, 1) : 0;
-  txt(planted ? (stage >= 4 ? 'Ready to harvest!' : 'Growing… stage ' + stage + '/4') : 'Plant a coin crop — it grows in real time (3 min)', W / 2, hy + hh + 40, 'bold 17px ' + FONT, planted && stage >= 4 ? '#2c6a1e' : '#3c5a2c', 'center', 'middle', false);
+  txt(planted ? (stage >= 4 ? 'Ready to harvest!' : 'Growing… stage ' + stage + ' of 4') : 'Plant a coin crop — it grows in real time, even while you play (about 3 minutes)', W / 2, hy + hh + 42, 'bold 17px ' + FONT, planted && stage >= 4 ? '#2c6a1e' : '#3c5a2c', 'center', 'middle', false);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  rr(W / 2 - 200, hy + hh + 62, 400, 18, 9);
+  rr(W / 2 - 220, hy + hh + 62, 440, 20, 10);
   ctx.fill();
   if (frac > 0) {
-    ctx.fillStyle = '#7ac86a';
-    rr(W / 2 - 198, hy + hh + 64, 396 * frac, 14, 7);
+    const pg = ctx.createLinearGradient(W / 2 - 220, 0, W / 2 + 220, 0);
+    pg.addColorStop(0, '#7ac86a'); pg.addColorStop(1, '#4f9a40');
+    ctx.fillStyle = pg;
+    rr(W / 2 - 218, hy + hh + 64, 436 * frac, 16, 8);
     ctx.fill();
   }
-  ctx.strokeStyle = INK; ctx.lineWidth = 1.5; rr(W / 2 - 200, hy + hh + 62, 400, 18, 9); ctx.stroke();
+  ctx.strokeStyle = INK; ctx.lineWidth = 2; rr(W / 2 - 220, hy + hh + 62, 440, 20, 10); ctx.stroke();
   if (!planted) {
     const afford = G.save.coins >= GREENHOUSE_COST;
-    button(W / 2 - 140, hy + hh + 96, 280, 52, '', function () {
+    button(W / 2 - 160, hy + hh + 100, 320, 54, '', function () {
       if (plantGreenhouse()) beep(660, 0.1, 'sine', 0.05, 990);
       else beep(140, 0.1, 'square', 0.04, 90);
-    }, { bg: afford ? '#c8860a' : '#6a5a44', bgDark: afford ? '#a06a00' : '#554733' });
-    drawCoinIcon(W / 2 - 96, hy + hh + 122, 10);
-    txt('Plant seed (' + GREENHOUSE_COST + 'c)', W / 2 - 80, hy + hh + 123, 'bold 16px ' + FONT, '#fff', 'left', 'middle');
+    }, { bg: afford ? '#c8860a' : '#6a5a44', bgDark: afford ? '#a06a00' : '#554733', bgHover: '#e0a020' });
+    drawCoinIcon(W / 2 - 108, hy + hh + 127, 11);
+    txt('Plant coin crop (' + GREENHOUSE_COST + 'c)', W / 2 - 90, hy + hh + 128, 'bold 17px ' + FONT, '#fff', 'left', 'middle');
   } else if (stage >= 4) {
-    button(W / 2 - 140, hy + hh + 96, 280, 52, '', function () {
+    button(W / 2 - 160, hy + hh + 100, 320, 54, '', function () {
       const y = harvestGreenhouse();
       if (y) { beep(880, 0.12, 'square', 0.05); setTimeout(function () { beep(1174, 0.15, 'square', 0.05); }, 110); }
     }, { bg: '#3f7a30', bgDark: '#2c5a20', bgHover: '#4f9a40' });
-    drawCoinIcon(W / 2 - 90, hy + hh + 122, 10);
-    txt('Harvest (+' + GREENHOUSE_YIELD + 'c)', W / 2 - 74, hy + hh + 123, 'bold 16px ' + FONT, '#fff', 'left', 'middle');
+    drawCoinIcon(W / 2 - 100, hy + hh + 127, 11);
+    txt('Harvest (+' + GREENHOUSE_YIELD + 'c)', W / 2 - 82, hy + hh + 128, 'bold 17px ' + FONT, '#fff', 'left', 'middle');
   } else {
-    button(W / 2 - 140, hy + hh + 96, 280, 52, 'Growing… ' + Math.ceil((GREENHOUSE_GROW_MS - (Date.now() - G.save.greenhouse.plantedAt)) / 1000) + 's left', function () { beep(140, 0.08, 'square', 0.03, 90); }, { bg: '#6a5a44', bgDark: '#554733', font: 'bold 15px ' + FONT });
+    const left = Math.max(0, Math.ceil((GREENHOUSE_GROW_MS - (Date.now() - G.save.greenhouse.plantedAt)) / 1000));
+    button(W / 2 - 160, hy + hh + 100, 320, 54, 'Growing… ' + left + 's to go', function () { beep(140, 0.08, 'square', 0.03, 90); }, { bg: '#6a5a44', bgDark: '#554733', font: 'bold 16px ' + FONT });
   }
-  button(W / 2 - 90, H - 72, 180, 44, 'Back', function () { G.state = 'menu'; }, { font: 'bold 17px ' + FONT });
+  button(W / 2 - 90, H - 70, 180, 44, 'Back', function () { G.state = 'menu'; }, { font: 'bold 17px ' + FONT });
 }
-
 function drawAlmanac() {
-  ctx.fillStyle = '#1d2b1a';
+  ctx.fillStyle = '#16241a';
   ctx.fillRect(0, 0, W, H);
-  txt('Almanac', W / 2, 40, 'bold 32px ' + FONT, '#ffe9c8', 'center', 'middle');
-  txt('Plants (' + SEED_ORDER.length + ')', 20, 76, 'bold 18px ' + FONT, '#ffd23f');
-  for (let i = 0; i < SEED_ORDER.length; i++) {
-    const key = SEED_ORDER[i];
-    const def = PLANT_TYPES[key];
-    const col = i % 9;
-    const rowi = Math.floor(i / 9);
-    const x = 14 + col * 139;
-    const y = 88 + rowi * 126;
-    const w = 131, h = 114;
-    panel(x, y, w, h, '#2c4226', '#4a6a3a');
-    const locked = G.save.unlocked.indexOf(key) < 0 && G.seedList.indexOf(key) < 0 && !hasItem('early_' + key);
-    circ(x + 22, y + 23, 14, 'rgba(255,255,255,0.12)', INK, 1.5);
-    miniPlant(key, x + 22, y + 22);
-    txt(locked ? '???' : def.name, x + 42, y + 20, 'bold 11px ' + FONT, locked ? '#8a8a7a' : '#fff');
-    txt(locked ? 'undiscovered' : def.cost + ' sun · ' + def.cd + 's' + (def.water ? ' · water' : ''), x + 42, y + 35, '10px ' + FONT, '#9ab88a');
-    const lines = wrapText(locked ? 'Win levels or buy it in the store.' : def.desc, 24);
-    ctx.font = '10px ' + FONT;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = locked ? '#7a8a6a' : '#c8d8b8';
-    for (let li = 0; li < Math.min(4, lines.length); li++) ctx.fillText(lines[li], x + 7, y + 56 + li * 13);
+  const hg = ctx.createLinearGradient(0, 0, 0, 110);
+  hg.addColorStop(0, '#2c4a26');
+  hg.addColorStop(1, '#1d2f18');
+  ctx.fillStyle = hg;
+  ctx.fillRect(0, 0, W, 110);
+  ctx.fillStyle = '#0f1c10';
+  ctx.fillRect(0, 110, W, 4);
+  txt('Almanac', 30, 58, 'bold 32px ' + FONT, '#ffe9c8', 'left', 'middle');
+  const tabY = 24, tabW = 200, tabH = 52;
+  button(W / 2 - 10 - tabW, tabY, tabW, tabH, '\uD83C\uDF3F Plants (' + SEED_ORDER.length + ')', function () { G.almanacTab = 'plants'; }, { font: 'bold 17px ' + FONT, bg: G.almanacTab === 'plants' ? '#c8860a' : '#4a3a24', bgDark: G.almanacTab === 'plants' ? '#a06a00' : '#33270f' });
+  button(W / 2 + 10, tabY, tabW, tabH, '\uD83E\uDDDF Zombies (' + ZOMBIE_ORDER.length + ')', function () { G.almanacTab = 'zombies'; }, { font: 'bold 17px ' + FONT, bg: G.almanacTab === 'zombies' ? '#a03828' : '#4a3a24', bgDark: G.almanacTab === 'zombies' ? '#7a2a1c' : '#33270f' });
+  drawCoinIcon(W - 250, 56, 13);
+  txt('x ' + G.save.coins, W - 228, 57, 'bold 17px ' + FONT, '#ffd23f', 'left', 'middle');
+  if (G.almanacTab === 'plants') {
+    for (let i = 0; i < SEED_ORDER.length; i++) {
+      const key = SEED_ORDER[i];
+      const def = PLANT_TYPES[key];
+      const col = i % 6;
+      const rowi = Math.floor(i / 6);
+      const x = 22 + col * 208;
+      const y = 132 + rowi * 168;
+      const w = 196, h = 152;
+      const locked = G.save.unlocked.indexOf(key) < 0 && G.seedList.indexOf(key) < 0 && !hasItem('early_' + key);
+      const hover = G.mouse.x >= x && G.mouse.x <= x + w && G.mouse.y >= y && G.mouse.y <= y + h;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      rr(x + 3, y + 4, w, h, 12);
+      ctx.fill();
+      const cg = ctx.createLinearGradient(0, y, 0, y + h);
+      cg.addColorStop(0, '#2e4a2a');
+      cg.addColorStop(1, '#203420');
+      ctx.fillStyle = cg;
+      rr(x, y, w, h, 12);
+      ctx.fill();
+      ctx.strokeStyle = locked ? '#555' : hover ? '#ffd23f' : '#5a8a4a';
+      ctx.lineWidth = hover && !locked ? 3 : 2;
+      ctx.stroke();
+      circ(x + 34, y + 36, 24, 'rgba(255,255,255,0.1)', INK, 2);
+      miniPlant(key, x + 34, y + 34);
+      txt(locked ? '???' : def.name, x + 66, y + 28, 'bold 14px ' + FONT, locked ? '#8a8a7a' : '#fff');
+      txt(locked ? 'not discovered yet' : def.cost + ' sun · recharge ' + def.cd + 's' + (def.water ? ' · water only' : ''), x + 66, y + 48, '11px ' + FONT, '#9ab88a');
+      const lines = wrapText(locked ? 'Win levels or buy early access in the Store.' : def.desc, 30);
+      ctx.font = '11px ' + FONT;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = locked ? '#7a8a6a' : '#c8d8b8';
+      for (let li = 0; li < Math.min(5, lines.length); li++) ctx.fillText(lines[li], x + 12, y + 76 + li * 15);
+    }
+  } else {
+    for (let i = 0; i < ZOMBIE_ORDER.length; i++) {
+      const key = ZOMBIE_ORDER[i];
+      const def = ZOMBIE_TYPES[key];
+      const col = i % 5;
+      const rowi = Math.floor(i / 5);
+      const x = 22 + col * 248;
+      const y = 132 + rowi * 168;
+      const w = 236, h = 152;
+      const hover = G.mouse.x >= x && G.mouse.x <= x + w && G.mouse.y >= y && G.mouse.y <= y + h;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      rr(x + 3, y + 4, w, h, 12);
+      ctx.fill();
+      const cg = ctx.createLinearGradient(0, y, 0, y + h);
+      cg.addColorStop(0, '#4a2e24');
+      cg.addColorStop(1, '#33201a');
+      ctx.fillStyle = cg;
+      rr(x, y, w, h, 12);
+      ctx.fill();
+      ctx.strokeStyle = hover ? '#ffd23f' : '#8a5a44';
+      ctx.lineWidth = hover ? 3 : 2;
+      ctx.stroke();
+      circ(x + 34, y + 36, 24, def.skin, INK, 2);
+      box(x + 22, y + 48, 24, 20, 4, def.shirt, INK, 2);
+      txt(def.name, x + 66, y + 28, 'bold 14px ' + FONT, '#fff');
+      txt('HP ' + (def.hp + (def.armor || 0)) + (def.armor ? ' (+' + def.armor + ' armor)' : '') + ' · speed ' + def.speed + ' · dmg ' + def.dmg, x + 66, y + 48, '11px ' + FONT, '#d8b8a8');
+      const lines = wrapText(def.desc, 36);
+      ctx.font = '11px ' + FONT;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#e8c8b8';
+      for (let li = 0; li < Math.min(5, lines.length); li++) ctx.fillText(lines[li], x + 12, y + 76 + li * 15);
+    }
   }
-  txt('Zombies (' + ZOMBIE_ORDER.length + ')', 20, 358, 'bold 18px ' + FONT, '#ff8a7a');
-  for (let i = 0; i < ZOMBIE_ORDER.length; i++) {
-    const key = ZOMBIE_ORDER[i];
-    const def = ZOMBIE_TYPES[key];
-    const col = i % 7;
-    const rowi = Math.floor(i / 7);
-    const x = 20 + col * 181;
-    const y = 370 + rowi * 126;
-    const w = 173, h = 114;
-    panel(x, y, w, h, '#33261f', '#6a4a3a');
-    circ(x + 22, y + 25, 13, def.skin, INK, 2);
-    box(x + 12, y + 36, 20, 18, 4, def.shirt, INK, 2);
-    txt(def.name, x + 40, y + 20, 'bold 11px ' + FONT, '#fff');
-    txt('HP ' + (def.hp + (def.armor || 0)) + (def.armor ? ' (+' + def.armor + ')' : '') + ' · spd ' + def.speed, x + 40, y + 35, '10px ' + FONT, '#d8b8a8');
-    const lines = wrapText(def.desc, 30);
-    ctx.font = '10px ' + FONT;
-    ctx.fillStyle = '#e8c8b8';
-    for (let li = 0; li < Math.min(4, lines.length); li++) ctx.fillText(lines[li], x + 7, y + 56 + li * 13);
-  }
-  const earnedNames = ACHIEVEMENTS.filter(function (a) { return G.save.achievements.indexOf(a.id) >= 0; }).map(function (a) { return a.name; });
-  txt('Achievements ' + G.save.achievements.length + '/' + ACHIEVEMENTS.length + (earnedNames.length ? ': ' + earnedNames.join(', ') : ''), 20, H - 86, 'bold 14px ' + FONT, '#ffd23f');
-  button(W / 2 - 90, H - 64, 180, 44, 'Back', function () { G.state = 'menu'; }, { font: 'bold 16px ' + FONT });
+  const earned = ACHIEVEMENTS.filter(function (a) { return G.save.achievements.indexOf(a.id) >= 0; });
+  panel(22, H - 108, W - 44, 56, 'rgba(30,42,24,0.95)', '#c8860a');
+  txt('Achievements ' + earned.length + '/' + ACHIEVEMENTS.length, 42, H - 80, 'bold 16px ' + FONT, '#ffd23f', 'left', 'middle');
+  txt(earned.length ? earned.map(function (a) { return a.name; }).join(' · ') : 'none yet — play to earn them!', 240, H - 80, '13px ' + FONT, '#c8d8b8', 'left', 'middle');
+  button(W - 210, H - 102, 180, 46, 'Back', function () { G.state = 'menu'; }, { font: 'bold 16px ' + FONT });
 }
-
 function drawHelp() {
   ctx.fillStyle = '#1d2b1a';
   ctx.fillRect(0, 0, W, H);
