@@ -1,0 +1,41 @@
+name: Export unsigned bundle to branch
+
+# Manually triggered: builds the release bundle and commits it to ci-out/ on the same branch,
+# so it can be signed offline with an upload key that never leaves the developer's machine.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+      - run: npm ci
+      - run: npx cap sync android
+      - name: Build unsigned release bundle
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: chmod +x gradlew && ./gradlew --no-daemon bundleRelease
+      - name: Commit bundle to ci-out/
+        run: |
+          mkdir -p ci-out
+          cp android/app/build/outputs/bundle/release/app-release.aab ci-out/bloomguard-unsigned.aab
+          echo "versionCode=${{ github.run_number }}" > ci-out/build-info.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-out
+          git commit -m "CI: export unsigned release bundle (run ${{ github.run_number }})"
+          git push
