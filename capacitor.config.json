@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.bloomguard.game",
+  "appName": "Bloomguard",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#17100a"
+  }
+}

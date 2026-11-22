@@ -1,0 +1,68 @@
+name: Android build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.BLOOMGUARD_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Gameplay smoke test (bot plays every level)
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          npm test
+
+      - name: Sync web assets into Android project
+        run: npx cap sync android
+
+      - name: Restore release keystore
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BLOOMGUARD_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build debug APK and release bundle
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          BLOOMGUARD_KEYSTORE: ${{ env.HAS_KEYSTORE == 'true' && format('{0}/release.keystore', runner.temp) || '' }}
+          BLOOMGUARD_KEYSTORE_PASSWORD: ${{ secrets.BLOOMGUARD_KEYSTORE_PASSWORD }}
+          BLOOMGUARD_KEY_ALIAS: ${{ secrets.BLOOMGUARD_KEY_ALIAS }}
+          BLOOMGUARD_KEY_PASSWORD: ${{ secrets.BLOOMGUARD_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug bundleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bloomguard-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bloomguard-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab

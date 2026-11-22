@@ -1,0 +1,25 @@
+{
+  "name": "bloomguard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bloomguard: an original lane-defense garden game for Android and the web.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "serve": "npx --yes http-server www -p 8080 -c-1",
+    "test": "node scripts/smoke-test.mjs",
+    "assets": "node scripts/make-assets.mjs && npx capacitor-assets generate --android",
+    "sync": "npx cap sync android",
+    "android:debug": "npx cap sync android && cd android && ./gradlew assembleDebug",
+    "android:release": "npx cap sync android && cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.6.2"
+  }
+}
