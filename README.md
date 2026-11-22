@@ -3,22 +3,23 @@
 An original lane-defense strategy game for **Steam** (Windows, macOS, Linux, Steam Deck), **Android** (Google Play) and the web.
 Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the **Rotlings** before they put out your greenhouse lanterns.
 
-![Gameplay](store/screenshots/3-greenhouse.png)
+![Gameplay](store/screenshots/6-orchard-boss.png)
 
 ## Features
-- **10 guardians**: Glowcap (economy), Thornling, Frostbell (slows), Barkwall, Puffball (spore trap), Mossmender (healer), Lanceleaf (piercing), Stormseed (3-lane lightning), Emberroot (splash + burn), Twinbud (3-lane shooter)
-- **8 Rotlings**, including armored, flying, tunneling and spawning types, plus a boss, the Rot Monarch
-- **3 worlds × 5 levels**, each with its own conditions: day sky-Glow, night (no sky Glow), and wind gusts that push enemies back but blow away loose Glow
-- **Endless Bloom** mode with a saved high score
-- Improvements over the classic formula:
-  - In-field **upgrades** (drop a card onto the same guardian, up to ★★★)
-  - **Bloom Burst** super meter
-  - **3 lanterns** instead of instant loss: each lost lantern knocks all enemies back
-  - **2× speed**, auto-collect Glow, a 25% refund when digging up
-  - The next wave comes early when you clear the field
-- Field guide, loadout picker, star ratings, local saves, synthesized music and sound effects
-- Controller support (Steam Deck / Xbox / PlayStation): stick-driven cursor, A select, B back, Start pause, X speed, Y Bloom. Keyboard: Esc pause, Space speed, B Bloom.
-- No ads, no tracking, no network use; works fully offline
+- **Story:** Wren and Moss chase the Rot Monarch across 6 worlds to recover the stolen Hearthseed, with illustrated dialogue scenes and a boss at the end of every world.
+- **6 worlds × 6 levels**, each with its own rule:
+  - *Dawn Greenhouse:* sky Glow
+  - *Moonlit Marsh:* night, so catch fireflies
+  - *Ember Orchard:* ember rain and wind gusts
+  - *Frostpeak Terraces:* frozen tiles and blizzards
+  - *Crystal Caverns:* mineable crystals
+  - *The Rotheart:* spreading blight
+- **Level goals:** defend, protect the sprouts, fixed budget, or a set loadout, plus a three-star challenge on every level.
+- **18 guardians** with distinct roles (producers, shooters, walls, traps, melee, snares, homing bees, lobbers, healers, buffs, ground spikes). Each has a unique **Overbloom** super powered by Wildseeds.
+- **20 Rotlings**, including shields, ranged spitters, healers, burrowers, exploders, freezers, armor, and 6 bosses with their own attacks.
+- **Progression:** petals and the Grove (permanent upgrades), loadout slots that grow from 6 to 8, in-battle ★★★ upgrades, 16 trophies, and an Endless mode that travels through every world.
+- Controller support (Steam Deck / Xbox / PlayStation) with a stick-driven cursor. Keyboard: 1–8 pick cards, W Wildseed, Space speed, P/Esc pause.
+- No ads, no tracking, no network use. Works fully offline.
 
 ## Original IP: why this is safe to publish
 - **Everything is original.** Name, characters, creature designs, world names, level design, UI, code, art and audio were all made for this project.
@@ -36,7 +37,8 @@ www/                  the game (plain HTML/CSS/JS ES modules, no build step)
   js/game.js          engine: simulation, input, rendering
   js/art.js           procedural vector art
   js/audio.js         WebAudio synth sound effects + generative music
-  js/main.js          menus, progression, Android back button
+  js/main.js          menus, story, Grove, trophies, progression, back button
+  js/story.js         story script
   privacy.html        privacy policy (hosted by GitHub Pages)
   js/gamepad.js       controller cursor support
 android/              Capacitor Android project (landscape, immersive full-screen)

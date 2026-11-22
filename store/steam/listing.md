@@ -4,22 +4,20 @@
 Bloomguard
 
 ## Short description (max 300 chars)
-Plant living garden guardians and hold back the creeping blight! A charming lane-defense strategy game with 10 guardians, in-field upgrades, a Bloom Burst super meter, 3 worlds, 15 levels and an Endless mode.
+The Rot Monarch stole the Hearthseed. Plant living garden guardians, unleash their Overbloom supers and battle across 6 worlds and 6 bosses in this story-driven lane-defense adventure.
 
 ## About this game
-The blight is coming, and only your garden can stop it.
-
-Plant living **guardians** on a garden grid, gather **Glow** to grow your defenses, and keep the **Rotlings** away from your greenhouse lanterns.
+Join Wren, a young gardener, and Moss, an ancient tortoise with a garden on his shell, on a quest to recover the stolen Hearthseed before the blight swallows every garden in the land.
 
 **Features**
-- 10 guardians with distinct roles: energy, shooters, walls, traps, healers, lightning and fire
-- Upgrade guardians in the field up to three stars
-- Bloom Burst: build up a super meter and supercharge your whole garden
-- 3 worlds that change the rules: sunny days, starless nights, and gusts of wind
-- 15 handcrafted levels, a boss in every world, and the Endless Bloom challenge
-- 8 kinds of Rotlings: armored, flying, tunneling and spawning foes
-- 1x/2x speed, auto-collect, pause any time
-- Full controller support and Steam Deck friendly. Mouse and touch work too.
+- A full adventure: 6 worlds, 36 levels, story scenes and 6 unique boss battles
+- 18 guardians, each with its own Overbloom super move powered by Wildseeds
+- Every world changes the rules: fireflies, ember rain, frozen tiles, mineable crystals and spreading blight
+- Level goals: protect the sprouts, fixed budgets, set loadouts, plus three-star challenges
+- 20 kinds of Rotlings, including shielded, ranged, healing, exploding, freezing and armored foes
+- The Grove: spend petals to permanently grow your guardians. Upgrade them in battle up to three stars.
+- Endless Bloom mode that travels through every world, plus 16 trophies
+- Full controller support and Steam Deck friendly
 - No microtransactions, no ads, plays offline
 
 ## Suggested tags

@@ -120,33 +120,46 @@ await renderArt(256, 256, out('resources/icon-256.png'), ICON);
 // Store screenshots (landscape 1920x1080) driven through the real game.
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
 await page.goto(base + 'index.html');
-await page.waitForTimeout(400);
+await page.waitForTimeout(600);
+const shotsDir = out('store/screenshots/x');
+for (const f of fs.readdirSync(path.dirname(shotsDir))) fs.unlinkSync(path.join(path.dirname(shotsDir), f));
 await page.screenshot({ path: out('store/screenshots/1-title.png') });
+await page.click('text=New Adventure');
+await page.waitForTimeout(2500);
+await page.screenshot({ path: out('store/screenshots/2-story.png') });
+await page.click('.skip');
 await page.evaluate(() => {
   const d = window.__bloomguard.data;
-  d.unlockedLevel = 9; d.guardians = ['glowcap', 'thornling', 'barkwall', 'puffball', 'frostbell', 'mossmender', 'lanceleaf', 'stormseed', 'emberroot'];
-  d.stars = { 0: 3, 1: 3, 2: 2, 3: 3, 4: 3, 5: 2, 6: 3, 7: 1, 8: 2 };
+  d.unlockedLevel = 16;
+  d.guardians = ['glowcap', 'thornling', 'barkwall', 'puffball', 'frostbell', 'vinewhip', 'mossmender', 'sporelamp', 'rootsnare', 'lanceleaf', 'stormseed', 'pollenpuff', 'hivebloom', 'emberroot', 'bramblemat', 'twinbud'];
+  d.stars = { 0: 3, 1: 3, 2: 2, 3: 3, 4: 3, 5: 2, 6: 3, 7: 1, 8: 2, 9: 3, 10: 2, 11: 3, 12: 3, 13: 2, 14: 1, 15: 3 };
+  d.petals = 420;
+  window.__bloomguard.mapWorld = 2;
   window.__bloomguard.show('map');
 });
-await page.waitForTimeout(300);
-await page.screenshot({ path: out('store/screenshots/2-map.png') });
-for (const [lvl, name, lo] of [[3, '3-greenhouse', ['glowcap', 'thornling', 'frostbell', 'barkwall', 'mossmender', 'puffball']], [8, '4-marsh', ['glowcap', 'thornling', 'emberroot', 'lanceleaf', 'barkwall', 'frostbell']]]) {
+await page.waitForTimeout(500);
+await page.screenshot({ path: out('store/screenshots/3-map.png') });
+const scenes = [
+  [3, '4-greenhouse', ['glowcap', 'thornling', 'frostbell', 'barkwall', 'vinewhip', 'puffball'], null],
+  [10, '5-marsh', ['sporelamp', 'pollenpuff', 'hivebloom', 'rootsnare', 'lanceleaf', 'barkwall', 'thornling'], null],
+  [17, '6-orchard-boss', ['glowcap', 'emberroot', 'twinbud', 'bramblemat', 'boulderbud', 'mossmender', 'thornling'], 'cinderhusk'],
+  [29, '7-caverns-boss', ['sporelamp', 'lanceleaf', 'emberroot', 'rootsnare', 'boulderbud', 'mossmender', 'prismbud', 'hivebloom'], 'gloomwyrm'],
+];
+for (const [lvl, name, lo, boss] of scenes) {
   await page.evaluate(({ lvl, lo }) => window.__bloomguard.show('play', lvl, lo), { lvl, lo });
-  await page.evaluate(({ lo }) => {
+  await page.evaluate(() => {
     const g = window.__bloomguard.game;
-    g.hint = -1;
-    g.glow = 9999;
-    for (const r of g.activeRows) for (let c = 0; c < 5; c++) {
-      const i = c === 0 ? 0 : c === 4 ? 4 : (r + c) % 3 + 1;
-      g.cooldowns.fill(0); g.place(i % lo.length, r, c);
-    }
-    g.place(0, 2, 0); g.place(0, 2, 0);
-    g.glow = 375; g.bloom = 100;
-    g.nextWave = 0;
-  }, { lo });
-  await page.waitForTimeout(9000);
-  await page.evaluate(() => { const g = window.__bloomguard.game; g.nextWave = 0; });
-  await page.waitForTimeout(9000);
+    g.hint = -1; g.glow = 99999;
+    const order = (r, c) => (c === 0 ? 0 : (r * 2 + c) % g.loadout.length);
+    for (const r of g.activeRows) for (let c = 0; c < 5; c++) { g.cooldowns.fill(0); if (!g.grid[r][c]) g.place(order(r, c), r, c); }
+    g.cooldowns.fill(0); g.place(1, 2, 2); g.cooldowns.fill(0); g.place(1, 2, 2);
+    g.glow = 425; g.seeds = 2; g.seedMeter = 65; g.nextWave = 0; g.level.waves = 99;
+  });
+  await page.waitForTimeout(8000);
+  await page.evaluate((boss) => { const g = window.__bloomguard.game; g.nextWave = 0; if (boss) g.spawnEnemy(boss); }, boss);
+  await page.waitForTimeout(8000);
+  await page.evaluate(() => { const g = window.__bloomguard.game; for (const row of g.grid) for (const o of row) if (o && o.type !== 'sprout' && Math.random() < 0.15) { g.overbloom(o); break; } });
+  await page.waitForTimeout(500);
   await page.screenshot({ path: out(`store/screenshots/${name}.png`) });
 }
 await browser.close();

@@ -4,35 +4,37 @@
 Bloomguard: Garden Defense
 
 ## Short description (max 80)
-Plant living garden guardians and hold back the creeping blight!
+Plant living guardians, beat 6 bosses and recover the stolen Hearthseed!
 
 ## Full description (max 4000)
-The blight is coming, and only your garden can stop it.
+The Rot Monarch has stolen the Hearthseed, the heart of every garden, and the blight is spreading.
 
-Bloomguard is a lane-defense strategy game. Plant living guardians on a garden grid, gather Glow to grow your defenses, and keep the Rotlings away from your greenhouse lanterns.
+Join Wren, a young gardener, and Moss, a 300-year-old tortoise with a garden on his shell, on a journey across six worlds to win it back. Bloomguard is a lane-defense strategy game with a story, bosses and plenty of surprises.
 
-🌱 10 GUARDIANS TO GROW
-Glowcaps that pulse out energy, spiky Thornlings, chiming Frostbells, stubborn Barkwalls, healing Mossmenders, lightning Stormseeds, fiery Emberroots and more, each with its own role.
+🌱 18 GUARDIANS
+Glowcaps and Sporelamps for energy, spiky Thornlings, chiming Frostbells, lashing Vinewhips, root-grabbing Rootsnares, bee-launching Hiveblooms, fiery Emberroots, rolling Boulderbuds, empowering Prismbuds and more.
 
-⭐ UPGRADE IN THE FIELD
-Drop a card onto a guardian of the same kind to level it up, up to three stars, for more power and health.
+🌿 OVERBLOOM SUPERS
+Collect Wildseeds and feed them to any guardian to unleash its own unique super move: thorn storms, bee swarms, fire rain, lane freezes and more.
 
-🌸 BLOOM BURST
-Defeating Rotlings fills your Bloom meter. Unleash it to supercharge every guardian, heal your garden and shower it with Glow.
+🗺 6 WORLDS, 36 LEVELS, 6 BOSSES
+Dawn Greenhouse, Moonlit Marsh, Ember Orchard, Frostpeak Terraces, Crystal Caverns and the Rotheart. Each world changes the rules: catch fireflies at night, dodge ember rain, smash frozen tiles, mine glowing crystals, and cleanse creeping blight.
 
-🌙 3 WORLDS, 15 LEVELS + ENDLESS MODE
-Fight from the sunny Dawn Greenhouse through the starless Moonlit Marsh to the gusty Ember Orchard. Each world changes how you play. Then test yourself in Endless Bloom.
+🎯 VARIED GOALS
+Protect fragile sprouts, win on a fixed budget, master a set loadout, and chase three stars on every level with unique challenges.
 
-🐛 8 KINDS OF ROTLINGS
-Armored Shellbacks, flying Blightmoths, tunneling Burrowers, Sporemothers that burst into Grubs, and the mighty Rot Monarch.
+🐛 20 KINDS OF ROTLINGS
+Shield-bearing Shieldbugs, spitting Spitters, healing Rot Priests, exploding Emberbeasts, freezing Frostcrawlers, armored Crystalbacks and six huge bosses.
+
+⭐ GROW YOUR GARDEN
+Earn petals and upgrade your guardians in the Grove, unlock more loadout slots, upgrade guardians in battle up to three stars, collect 16 trophies, and test yourself in the ever-changing Endless Bloom.
 
 ✅ FAIR AND FRIENDLY
 • No ads, no in-app purchases, no accounts
-• Plays fully offline
-• Collects no data
-• 1x / 2x game speed, auto-collect option, pause any time
+• Plays fully offline and collects no data
+• 1x / 2x speed, auto-collect, pause any time
 
-Light the lanterns. Guard the garden. Hold back the blight!
+Light the lanterns. Recover the Hearthseed. Hold back the blight!
 
 ## Category
 Game → Strategy
