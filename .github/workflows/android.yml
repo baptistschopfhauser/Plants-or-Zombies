@@ -6,6 +6,15 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      upload_to_play:
+        description: 'Upload the signed bundle to Google Play (needs PLAY_SERVICE_ACCOUNT_JSON)'
+        type: boolean
+        default: false
+      play_track:
+        description: 'Play track: internal, alpha (closed), beta (open) or production'
+        type: string
+        default: internal
 
 jobs:
   build:
@@ -58,6 +67,23 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug bundleRelease
+
+      - name: Verify the release bundle is signed (Play rejects unsigned bundles)
+        if: env.HAS_KEYSTORE == 'true'
+        run: |
+          AAB=$(ls android/app/build/outputs/bundle/release/*.aab)
+          jarsigner -verify "$AAB" | tee verify.txt
+          grep -q "jar verified" verify.txt
+
+      - name: Upload to Google Play
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_to_play && env.HAS_KEYSTORE == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: io.github.bloomguard.game
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: ${{ inputs.play_track }}
+          status: ${{ inputs.play_track == 'production' && 'draft' || 'completed' }}
 
       - uses: actions/upload-artifact@v4
         with:
