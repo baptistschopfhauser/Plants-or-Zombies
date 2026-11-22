@@ -1,9 +1,11 @@
 name: Export unsigned bundle to branch
 
-# Manually triggered: builds the release bundle and commits it to ci-out/ on the same branch,
+# Triggered manually, or by pushing a change to .github/export-request. Builds the release bundle and commits it to ci-out/ on the same branch,
 # so it can be signed offline with an upload key that never leaves the developer's machine.
 on:
   workflow_dispatch:
+  push:
+    paths: ['.github/export-request']
 
 permissions:
   contents: write
