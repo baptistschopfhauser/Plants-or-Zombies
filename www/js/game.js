@@ -743,8 +743,8 @@ export class Game {
 
     if (this.hint >= 0 && this.hint < 3) {
       const msgs = [
-        'Tap a guardian card at the top, then tap a glowing tile to plant it.',
-        'Tap the floating Glow motes to collect energy. Plant Glowcaps for more!',
+        'Pick a guardian card at the top, then pick a tile to plant it.',
+        'Grab the floating Glow motes to collect energy. Plant Glowcaps for more!',
         'Tip: drop the same card on a guardian to upgrade it. Fill the Bloom meter for a Burst!',
       ];
       if (this.hint === 2 && !this._hintTimer) this._hintTimer = this.time + 8;

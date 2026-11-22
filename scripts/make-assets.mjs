@@ -81,6 +81,42 @@ await renderArt(1024, 500, out('store/feature-graphic.png'), `
   ctx.strokeText('Hold back the blight!', w/2, 180); ctx.fillStyle = '#ffe9a0'; ctx.fillText('Hold back the blight!', w/2, 180);
 `);
 
+// Steam store / library art. scene(): garden backdrop + guardians vs rotlings; logo optional.
+const SCENE = (logo, transparent = false) => `
+  const s = Math.min(w, h * 1.6);
+  if (!${transparent}) {
+    const g = ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#9fd8ff'); g.addColorStop(0.5,'#e9f7ff'); g.addColorStop(0.52,'#79c25a'); g.addColorStop(1,'#3f7f30');
+    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = 'rgba(255,230,120,0.35)';
+    for (let i = 0; i < 40; i++) { ctx.beginPath(); ctx.arc((i*173)%w, h*0.55 + (i*61)%(h*0.45), s*0.006, 0, 7); ctx.fill(); }
+    const tall = h > w;
+    const ts = tall ? w * 0.2 : s * 0.16, gy = h * 0.93;
+    const row = ['glowcap','thornling','frostbell','barkwall','emberroot'];
+    row.forEach((k, i) => art.drawGuardian(ctx, k, tall ? w * (0.1 + i * 0.2) : w*0.08 + i * ts * 0.85, tall ? h * 0.76 : gy, ts, 0.3 + i, {}));
+    const defs = { grub:{color:'#8a6a9c'}, shellback:{color:'#6c7a5a',shell:480}, moth:{color:'#9d8fd1',flying:true}, brute:{color:'#56634a',big:true} };
+    [['grub',0.66],['moth',0.74],['shellback',0.82],['brute',0.92]].forEach(([k,x], i) =>
+      art.drawRotling(ctx, { x: tall ? w * (0.16 + i * 0.23) : w*x, y: gy, def: defs[k], seed: i*3, shell: defs[k].shell||0, hurt: 0 }, ts, 0.5));
+  }
+  if (${logo}) {
+    const fs = Math.min(w * 0.16, h * 0.28);
+    ctx.font = '800 ' + fs + 'px Trebuchet MS, sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    const ly = ${transparent} ? h * 0.6 : h > w ? h * 0.3 : h * 0.36;
+    ctx.lineWidth = fs * 0.16; ctx.strokeStyle = '#2f6b25'; ctx.strokeText('Bloomguard', w/2, ly);
+    ctx.fillStyle = '#ffffff'; ctx.fillText('Bloomguard', w/2, ly);
+  }
+`;
+for (const [name, w, h, logo, transparent] of [
+  ['header-capsule-920x430', 920, 430, true],
+  ['small-capsule-462x174', 462, 174, true],
+  ['main-capsule-1232x706', 1232, 706, true],
+  ['vertical-capsule-748x896', 748, 896, true],
+  ['library-capsule-600x900', 600, 900, true],
+  ['library-hero-3840x1240', 3840, 1240, false],
+  ['library-logo-1280x720', 1280, 720, true, true],
+  ['page-background-1438x810', 1438, 810, false],
+]) await renderArt(w, h, out(`store/steam/${name}.png`), SCENE(logo, !!transparent));
+await renderArt(256, 256, out('resources/icon-256.png'), ICON);
+
 // Store screenshots (landscape 1920x1080) driven through the real game.
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
 await page.goto(base + 'index.html');

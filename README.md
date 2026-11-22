@@ -1,6 +1,6 @@
 # Bloomguard 🌱
 
-An original lane-defense strategy game for Android (Google Play) and the web.
+An original lane-defense strategy game for **Steam** (Windows, macOS, Linux, Steam Deck), **Android** (Google Play) and the web.
 Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the **Rotlings** before they put out your greenhouse lanterns.
 
 ![Gameplay](store/screenshots/3-greenhouse.png)
@@ -17,6 +17,7 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
   - **2× speed**, auto-collect Glow, a 25% refund when digging up
   - The next wave comes early when you clear the field
 - Field guide, loadout picker, star ratings, local saves, synthesized music and sound effects
+- Controller support (Steam Deck / Xbox / PlayStation): stick-driven cursor, A select, B back, Start pause, X speed, Y Bloom. Keyboard: Esc pause, Space speed, B Bloom.
 - No ads, no tracking, no network use; works fully offline
 
 ## Original IP: why this is safe to publish
@@ -24,7 +25,7 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
 - **No image or audio files from anywhere else.** All art is drawn procedurally in `www/js/art.js`, and all sound is synthesized in `www/js/audio.js`. The icon, feature graphic and screenshots are rendered from that same code (`scripts/make-assets.mjs`).
 - **Game mechanics are not copyrightable.** Lane defense, resource generation and unit placement are a genre shared by many games. Specific expression is protected: names, characters, art, sounds, text and trademarks. Bloomguard reuses none of these from any existing game.
 - **Keep it that way when you publish:**
-  - Don't mention "Plants vs. Zombies", PopCap, EA or any other game in the store title, description or keywords. That is trademark misuse and a common reason Play rejects apps.
+  - Don't mention "Plants vs. Zombies", PopCap, EA or any other game in the store title, description, tags or keywords on Play or Steam. That is trademark misuse and a common reason both stores reject apps.
   - Consider renaming this GitHub repository (for example to `bloomguard`), since the current name echoes a trademark.
   - Before launch, search the Play Store and a trademark database (USPTO TESS, EUIPO eSearch) for "Bloomguard". If the name is taken, change `appName` in `capacitor.config.json`, `android/app/src/main/res/values/strings.xml`, and the `<title>` and logo in `www/`.
   - Change `appId` (`io.github.bloomguard.game`) to a package name you own **before your first upload**. It can never be changed afterwards.
@@ -38,8 +39,12 @@ www/                  the game (plain HTML/CSS/JS ES modules, no build step)
   js/audio.js         WebAudio synth sound effects + generative music
   js/main.js          menus, progression, Android back button
   privacy.html        privacy policy (hosted by GitHub Pages)
+  js/gamepad.js       controller cursor support
 android/              Capacitor Android project (landscape, immersive full-screen)
-store/                Play Store listing text, icon, feature graphic, screenshots
+desktop/              Electron shell for Windows / macOS / Linux (Steam)
+steam/scripts/        SteamPipe build scripts for manual uploads
+store/                Play Store listing, icon, feature graphic, screenshots
+store/steam/          Steam store text + every capsule / library image
 scripts/              asset generator + headless gameplay smoke test
 ```
 
@@ -83,6 +88,31 @@ Or open the project in Android Studio with `npx cap open android`.
    3. Complete the content rating, data safety and target audience forms (suggested answers are in `store/listing.md`).
    4. Upload the `.aab` to Internal testing, then Closed testing. New personal developer accounts need 12+ testers for 14 days before production.
    5. Release to production.
+
+## Build for desktop (Steam)
+```bash
+npm install
+npm run desktop            # play the desktop version in a window
+npm run desktop:win        # dist-desktop/win-unpacked/Bloomguard.exe
+npm run desktop:linux      # dist-desktop/linux-unpacked/bloomguard
+npm run desktop:mac        # dist-desktop/mac-universal/Bloomguard.app (must run on macOS)
+```
+The desktop app starts fullscreen (F11 or Alt+Enter toggles it; `--windowed` starts in a window) and has a Quit button on the title screen. It runs completely offline. The GitHub Actions workflow `desktop.yml` builds all three platforms on every push. Download them from the run's **Artifacts**.
+
+## Publish on Steam
+1. **Join Steamworks** at partner.steamgames.com. Pay the $100 Steam Direct fee per app and complete the tax and bank forms. You'll get an **App ID**.
+2. **Create depots** in Steamworks → SteamPipe → Depots, one each for Windows, Linux and macOS. Set each depot's OS in its config.
+3. **Launch options** (Steamworks → Installation → General):
+   - Windows: `Bloomguard.exe`
+   - Linux / Steam Deck: `bloomguard` with arguments `--no-sandbox`. The game also does this automatically when Steam starts it.
+   - macOS: `Bloomguard.app`
+4. **Upload a build**, using either option:
+   - **From CI (recommended):** add repository secrets `STEAM_USERNAME` (a dedicated builder account with Steam Guard), `STEAM_CONFIG_VDF` (see the [game-ci/steam-deploy docs](https://github.com/game-ci/steam-deploy) for creating it) and `STEAM_APP_ID`. Then run **Actions → Desktop build (Steam) → Run workflow** with *Upload to Steam* ticked. The action creates its depots as App ID + 1/2/3, so either use those depot IDs in Steamworks or edit the workflow.
+   - **By hand:** build all three folders into `dist-desktop/`, fill in the IDs in `steam/scripts/*.vdf`, then run `steamcmd +login <builder> +run_app_build "$(pwd)/steam/scripts/app_build.vdf" +quit`.
+5. Set the build live on a beta branch in Steamworks → Builds, test it (including on a Steam Deck if you can), and then set it live on `default`.
+6. **Store page:** text and every required image are in `store/steam/`. Screenshots are in `store/screenshots/`. Complete the content survey (suggested answers are in `store/steam/listing.md`), then submit the store page and the build for review. Valve needs a few days for each, and the "Coming Soon" page must be live for at least 2 weeks before launch.
+7. **Optional:** Steam achievements or cloud saves need the Steamworks SDK (for example via the `steamworks.js` npm package). The game works fine on Steam without it. Steam Cloud can also be set up without code using Auto-Cloud: point it at the Electron `userData` folder (`%APPDATA%/Bloomguard`, `~/.config/Bloomguard`, `~/Library/Application Support/Bloomguard`).
+8. **macOS:** for the smoothest experience, sign and notarize the `.app` with an Apple Developer ID ($99/year). Without it, players may see a Gatekeeper warning.
 
 ## License
 Code: MIT (see `LICENSE`). All game art and audio are generated by this code and fall under the same license.

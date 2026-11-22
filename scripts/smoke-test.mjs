@@ -123,6 +123,38 @@ const results = await page.evaluate(async () => {
   return out;
 });
 
+// Controller: mock a gamepad, steer the cursor onto the "Map" button with the stick and press A
+await page.evaluate(() => window.__bloomguard.show('title'));
+const target = await page.locator('text=Field Guide').boundingBox();
+await page.evaluate(({ tx, ty }) => {
+  const pad = { connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+  navigator.getGamepads = () => [pad];
+  window.__pad = pad;
+  window.__padTarget = { tx, ty };
+}, { tx: target.x + target.width / 2, ty: target.y + target.height / 2 });
+// push the stick toward the target until the cursor is on it
+for (let i = 0; i < 200; i++) {
+  const done = await page.evaluate(() => {
+    const c = document.getElementById('pad-cursor');
+    if (!c) return false;
+    const m = /translate\(([\d.]+)px, ([\d.]+)px\)/.exec(c.style.transform);
+    if (!m) return false;
+    const [x, y] = [parseFloat(m[1]), parseFloat(m[2])];
+    const { tx, ty } = window.__padTarget;
+    const dx = tx - x, dy = ty - y;
+    window.__pad.axes[0] = Math.abs(dx) > 8 ? Math.sign(dx) * 0.6 : 0;
+    window.__pad.axes[1] = Math.abs(dy) > 8 ? Math.sign(dy) * 0.6 : 0;
+    return Math.abs(dx) <= 8 && Math.abs(dy) <= 8;
+  });
+  if (done) break;
+  await page.waitForTimeout(16);
+}
+await page.evaluate(() => { window.__pad.axes = [0, 0, 0, 0]; window.__pad.buttons[0].pressed = true; });
+await page.waitForTimeout(80);
+await page.evaluate(() => { window.__pad.buttons[0].pressed = false; });
+await page.waitForTimeout(80);
+if (!(await page.locator('.guide').count())) errors.push('gamepad A-press did not open the Field Guide');
+
 // Exercise menus
 await page.evaluate(() => window.__bloomguard.show('guide'));
 await page.click('.guide-list .entry >> nth=0');

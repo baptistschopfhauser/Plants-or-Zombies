@@ -1,0 +1,73 @@
+name: Desktop build (Steam)
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      upload_to_steam:
+        description: 'Upload this build to Steam (needs Steam secrets)'
+        type: boolean
+        default: false
+      steam_branch:
+        description: 'Steam beta branch to set live (blank = none; never "default" from CI)'
+        type: string
+        default: 'beta'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win --x64
+            out: win-unpacked
+            name: windows
+          - os: ubuntu-latest
+            target: --linux --x64
+            out: linux-unpacked
+            name: linux
+          - os: macos-latest
+            target: --mac --universal
+            out: mac-universal
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Package (unpacked folder, as Steam expects)
+        run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bloomguard-${{ matrix.name }}
+          path: dist-desktop/${{ matrix.out }}
+
+  steam:
+    if: github.event_name == 'workflow_dispatch' && inputs.upload_to_steam
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: depots
+      - name: Upload to Steam with SteamPipe
+        uses: game-ci/steam-deploy@v3
+        with:
+          username: ${{ secrets.STEAM_USERNAME }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: ${{ secrets.STEAM_APP_ID }}
+          buildDescription: Bloomguard build ${{ github.run_number }} (${{ github.sha }})
+          rootPath: depots
+          depot1Path: bloomguard-windows
+          depot2Path: bloomguard-linux
+          depot3Path: bloomguard-macos
+          releaseBranch: ${{ inputs.steam_branch }}

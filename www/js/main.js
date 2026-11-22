@@ -4,6 +4,9 @@ import { Game } from './game.js';
 import { drawGuardian, drawRotling } from './art.js';
 import { sfx, startMusic, stopMusic, setAudio, unlockAudio } from './audio.js';
 import * as store from './save.js';
+import { initGamepad } from './gamepad.js';
+
+const desktop = window.bloomDesktop || null;
 
 let data = store.load();
 setAudio({ sfx: data.settings.sfx, music: data.settings.music });
@@ -70,6 +73,7 @@ const SCREENS = {
           el('button', { class: 'big', onclick: () => { sfx('click'); show('map'); } }, anyProgress ? 'Continue' : 'Play'),
           el('button', { onclick: () => { sfx('click'); show('guide'); } }, 'Field Guide'),
           el('button', { onclick: () => { sfx('click'); show('settings'); } }, 'Settings'),
+          desktop ? el('button', { onclick: () => desktop.quit() }, 'Quit') : null,
         ),
       ),
     );
@@ -241,14 +245,19 @@ const SCREENS = {
       el('div', { class: 'settings' },
         toggle('sfx', 'Sound effects'),
         toggle('music', 'Music'),
+        desktop ? el('label', { class: 'toggle' },
+          el('input', { type: 'checkbox', id: 'fs-toggle', onchange: (e) => desktop.setFullscreen(e.target.checked) }),
+          el('span', {}, 'Fullscreen (F11)')) : null,
         toggle('autoCollect', data.unlockedLevel >= 5 ? 'Auto-collect Glow' : 'Auto-collect Glow (clear Dawn Greenhouse to unlock)', data.unlockedLevel >= 5),
         el('button', { class: 'danger', onclick: () => {
           if (confirm('Erase all progress? This cannot be undone.')) { data = store.reset(); persist(); show('settings'); }
         } }, 'Reset progress'),
         el('p', { class: 'small' }, 'Bloomguard stores progress only on this device. No ads, no tracking, no accounts.'),
         el('p', { class: 'small' }, 'Version 1.0.0 · All art and sound generated in code.'),
+        el('p', { class: 'small' }, 'Controller: stick moves the cursor · A select · B back · Start pause · X speed · Y Bloom'),
       ),
     );
+    if (desktop) desktop.isFullscreen().then((v) => { const c = document.getElementById('fs-toggle'); if (c) c.checked = v; });
   },
 };
 
@@ -313,7 +322,18 @@ window.addEventListener('keydown', (e) => {
   if (e.key === ' ' && screen === 'play' && game) { game.speed = game.speed === 1 ? 2 : 1; }
 });
 
-if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Capacitor) {
+initGamepad({
+  back: handleBack,
+  pause: () => { if (screen === 'play') pause(); else if (screen === 'pause') ui._resume && ui._resume(); },
+  speed: () => { if (screen === 'play' && game) game.speed = game.speed === 1 ? 2 : 1; },
+  bloom: () => { if (screen === 'play' && game) game.triggerBloom(); },
+});
+window.addEventListener('keydown', (e) => {
+  if ((e.key === 'b' || e.key === 'B') && screen === 'play' && game) game.triggerBloom();
+  if ((e.key === 'p' || e.key === 'P') && screen === 'play') pause();
+});
+
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Capacitor && !desktop) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
