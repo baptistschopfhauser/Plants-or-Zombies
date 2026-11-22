@@ -75,6 +75,33 @@ jobs:
           jarsigner -verify "$AAB" | tee verify.txt
           grep -q "jar verified" verify.txt
 
+      # Without your secrets, prove the signing pipeline anyway: sign with a throwaway key,
+      # verify the signature, and let Google's bundletool validate the bundle and build APKs from it.
+      - name: Signing + bundle validation self-test (throwaway key)
+        if: env.HAS_KEYSTORE != 'true'
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          KS="$RUNNER_TEMP/selftest.jks"
+          keytool -genkeypair -keystore "$KS" -alias selftest -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass selftest -keypass selftest -dname "CN=Bloomguard self-test"
+          BLOOMGUARD_KEYSTORE="$KS" BLOOMGUARD_KEYSTORE_PASSWORD=selftest BLOOMGUARD_KEY_ALIAS=selftest BLOOMGUARD_KEY_PASSWORD=selftest \
+            ./gradlew --no-daemon bundleRelease
+          AAB=$(ls app/build/outputs/bundle/release/*.aab)
+          jarsigner -verify "$AAB" | tee "$RUNNER_TEMP/verify.txt"
+          grep -q "jar verified" "$RUNNER_TEMP/verify.txt"
+          curl -sSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+          java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle="$AAB"
+          java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$AAB" | tee "$RUNNER_TEMP/manifest.xml"
+          grep -q 'package="io.github.bloomguard.game"' "$RUNNER_TEMP/manifest.xml"
+          grep -q 'android:targetSdkVersion="36"' "$RUNNER_TEMP/manifest.xml"
+          java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle="$AAB" --output="$RUNNER_TEMP/app.apks" --mode=universal \
+            --ks="$KS" --ks-key-alias=selftest --ks-pass=pass:selftest --key-pass=pass:selftest
+          echo "Signed bundle validated by bundletool: Play-ready once signed with your own upload key."
+          rm -f "$AAB" # never publish a throwaway-signed bundle as the release artifact
+          ./gradlew --no-daemon bundleRelease
+
       - name: Upload to Google Play
         if: github.event_name == 'workflow_dispatch' && inputs.upload_to_play && env.HAS_KEYSTORE == 'true'
         uses: r0adkll/upload-google-play@v1
