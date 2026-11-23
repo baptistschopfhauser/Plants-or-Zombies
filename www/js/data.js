@@ -300,7 +300,9 @@ export function dailyLevel(key = todayKey(), unlockedLevel = 36) {
   const goal = goals[Math.floor(rnd() * goals.length)];
   const modKeys = Object.keys(MODIFIERS);
   const mods = [];
-  while (mods.length < 2) { const m = modKeys[Math.floor(rnd() * modKeys.length)]; if (!mods.includes(m) && !(goal === 'budget' && m === 'glowrain')) mods.push(m); }
+  const clash = (m) => (goal === 'budget' && m === 'glowrain') || (goal === 'sprouts' && ['tough', 'swarming', 'swift'].includes(m))
+    || (m === 'tough' && mods.includes('swarming')) || (m === 'swarming' && mods.includes('tough'));
+  while (mods.length < 2) { const m = modKeys[Math.floor(rnd() * modKeys.length)]; if (!mods.includes(m) && !clash(m)) mods.push(m); }
   return {
     world, goal, pool, mods, waves: 7 + world, budget: 6 + world * 1.4, daily: key,
     startGlow: goal === 'budget' ? 1600 + world * 200 : undefined,
@@ -314,3 +316,51 @@ export const POTLUCK = [
   { name: 'Pot Luck II', world: 2, pots: 22, rotChance: 0.48, pool: ['grub', 'skitter', 'shieldbug', 'emberbeast', 'spore'], guardians: ['thornling', 'twinbud', 'emberroot', 'barkwall', 'rootsnare', 'hivebloom'], reward: 90 },
   { name: 'Pot Luck III', world: 4, pots: 25, rotChance: 0.45, pool: ['grub', 'shieldbug', 'crystalback', 'rotpriest', 'brute', 'burrower'], guardians: ['lanceleaf', 'emberroot', 'hivebloom', 'boulderbud', 'stormseed', 'mossmender', 'twinbud'], reward: 130 },
 ];
+
+// ---------- Lexicon: roles, lore and tips (all original) ----------
+export const ROLES = {
+  producer: { name: 'Energy', color: '#f4b324' }, shooter: { name: 'Attacker', color: '#5cb84a' }, lobber: { name: 'Lobber', color: '#e8743a' },
+  homing: { name: 'Hunter', color: '#e8a03a' }, melee: { name: 'Bruiser', color: '#3f9a6a' }, wall: { name: 'Defender', color: '#9a6a3c' },
+  trap: { name: 'Trap', color: '#a46ad0' }, instant: { name: 'Blast', color: '#e0c030' }, healer: { name: 'Support', color: '#3fb8a0' },
+  snare: { name: 'Control', color: '#8a6d3b' }, ground: { name: 'Ground', color: '#6a8a3a' }, buff: { name: 'Support', color: '#a888e8' },
+};
+export const LORE = {
+  glowcap: ['Glowcaps hum softly when they are happy, which is always.', 'Plant two rows early. Glow now means guardians later.'],
+  sporelamp: ['Sporelamps were once used by marsh folk as night-lights.', 'Cheap and great at night. Swap Glowcaps for these in dark worlds.'],
+  thornling: ['A Thornling grows a new thorn every second, and loses one just as fast.', 'Upgrade a Thornling to three stars for a cheap, reliable lane.'],
+  barkwall: ['Barkwall is four hundred years old and has never once moved.', 'Place one in front of your attackers when a big wave is coming.'],
+  puffball: ['Puffballs nap for a while, then wake up VERY grumpy.', 'Plant it in a lane before Rotlings arrive so it has time to arm.'],
+  frostbell: ['Each chime of a Frostbell is a tiny snowstorm.', 'Slowed Rotlings bite slower too. Pair it with walls.'],
+  vinewhip: ['Vinewhip practises its swing on falling leaves all autumn.', 'Hits every Rotling in front of it at once: perfect against swarms.'],
+  mossmender: ['Moss taught the first Mossmender how to hum a healing song.', 'Put it right behind your walls, and use it to clean blight in the Rotheart.'],
+  rootsnare: ['Its roots reach deep enough to tickle the world\'s core.', 'Snared Rotlings stop completely. Great with lobbers and piercers.'],
+  lanceleaf: ['Lanceleaf never misses. It simply hits everything.', 'Best in long lanes full of Rotlings, and it pierces shields.'],
+  stormseed: ['Stormseeds are born during thunderstorms and want to go back.', 'Save it for emergencies when three lanes are in trouble.'],
+  pollenpuff: ['A Pollenpuff has never finished a sentence without sneezing.', 'Confused Rotlings walk backwards, buying precious seconds.'],
+  hivebloom: ['Every bee in a Hivebloom has a name. Most are named Bee.', 'Bees chase the closest Rotling in any lane. Great for flyers.'],
+  emberroot: ['Emberroot keeps the orchard warm on cold nights.', 'Its arcing seeds fly over shields and set Rotlings ablaze.'],
+  bramblemat: ['Bramblemat is the only guardian that enjoys being stepped on.', 'Rotlings walk over it and get scratched. Big brutes crush it, though.'],
+  twinbud: ['The twin buds argue constantly about who is the pretty one.', 'One Twinbud covers three lanes. Plant it in the middle row.'],
+  boulderbud: ['Boulderbud dreams of rolling down a very long hill.', 'When it breaks it rolls down the lane. Put it far forward.'],
+  prismbud: ['Prismbud turns sunlight into courage.', 'Surround it with attackers: every neighbour hits 35% harder.'],
+  grub: ['Grubs think everything is a snack, including rocks.', 'Slow and weak alone, dangerous in crowds.'],
+  swarm: ['Swarmlings always travel in threes and argue in threes too.', 'Vinewhips and Twinbuds clean them up fast.'],
+  skitter: ['Skitters have never walked anywhere. Only skittered.', 'Hit them early; they reach your lanterns quickly.'],
+  shellback: ['Shellbacks polish their shells every morning.', 'Once the shell breaks it gets faster. Finish it quickly.'],
+  moth: ['Blightmoths are drawn to lantern light, which is the problem.', 'They fly over walls. Hiveblooms and shooters deal with them.'],
+  shieldbug: ['The leaf shield was a gift from its grandmother.', 'Lob over the shield, pierce it, or snare it in place.'],
+  burrower: ['Burrowers dig so fast they often forget where they started.', 'Keep a backup attacker behind your front line.'],
+  spitter: ['Spitters practise their aim on puddles.', 'They stop at range. Push them back or burn them down.'],
+  spore: ['A Sporemother carries hundreds of tiny grubs in her pockets.', 'Expect three Grubs when she pops. Splash damage helps.'],
+  emberbeast: ['Emberbeasts are always warm to hug, but please don\'t.', 'They explode when defeated. Don\'t let them reach your walls.'],
+  frostcrawler: ['Frostcrawlers leave tiny icicles wherever they nap.', 'Their bite freezes guardians. Snipe them before they arrive.'],
+  crystalback: ['Its crystals grow one millimetre each full moon.', 'Thorns and chimes barely scratch it. Use fire, lances and boulders.'],
+  rotpriest: ['Rot Priests chant lullabies to the blight.', 'It heals everything nearby. Make it your first target.'],
+  brute: ['A Mossbrute once ate an entire hedge. On purpose.', 'Hits very hard and crushes Bramblemats. Stack damage in its lane.'],
+  grubmother: ['She has two hundred children and remembers none of their names.', 'Keep killing the Grubs she births, or you will be overrun.'],
+  bogmaw: ['Bogmaw has lived in the same puddle for a thousand years.', 'Swarms come in waves, so keep splash damage ready.'],
+  cinderhusk: ['Cinderhusk lit the first fire in the orchard and was proud of it.', 'Its fireballs target your guardians. Spread them out.'],
+  rimefang: ['Rimefang has never felt warm. Not even once.', 'It freezes whole columns. Don\'t stack everything in one column.'],
+  gloomwyrm: ['Gloomwyrm can taste fear through the dirt.', 'It dives and resurfaces in another lane. Defend every lane.'],
+  monarch: ['The Rot Monarch wanted a garden, but never learned how to care for one.', 'Phase two spreads blight. Bring Mossmenders and Wildseeds.'],
+};

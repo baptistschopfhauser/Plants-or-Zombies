@@ -25,6 +25,8 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
   - a seeded *Daily Challenge* with modifiers and a streak counter
   - a real-time *Zen Nursery*
 - **Acorn economy and Store:** 10 hats, 5 colour skins (rendered with a fast per-colour transform, no canvas filters) and 5 permanent boosts.
+- **Polished toy-like art:** toon shading with specular gloss, rim light and coloured outlines, big glossy eyes with brows, veined leaves, and leafy rooted bases. Rotlings were redesigned as one-eyed rot-gourd creatures with walk cycles, noodle arms, teeth, drool and toadstools.
+- **Lexicon:** an animated portrait for every guardian, Rotling and boss, with role badge, stat bars, description, Overbloom, lore and a strategy tip. Undiscovered entries show as silhouettes.
 - **Storybook art and UI:** an animated parallax main menu with wooden signboards, painterly pre-rendered lawns, soft key lighting, clouds, squash-and-stretch and pop-in animation, hit knockback, and a wave progress bar with flags.
 - Controller support (Steam Deck / Xbox / PlayStation) with a stick-driven cursor. Keyboard: 1–8 pick cards, W Wildseed, Space speed, P/Esc pause.
 - No ads, no tracking, no network use. Works fully offline.

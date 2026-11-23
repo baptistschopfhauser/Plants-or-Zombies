@@ -1355,6 +1355,25 @@ export class Game {
   _drawBoard(ctx, t) {
     ctx.drawImage(this.boardTex, BX, BY);
     drawGroundDetails(ctx, this.world, null, this.decor, t);
+    // wooden garden frame with an inner soft shadow
+    ctx.save();
+    const ig = ctx.createLinearGradient(0, BY, 0, BY + 26);
+    ig.addColorStop(0, 'rgba(0,0,0,0.28)'); ig.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ig; ctx.fillRect(BX, BY, BOARD_R - BX, 26);
+    ctx.strokeStyle = '#5a3a1e'; ctx.lineWidth = 6;
+    ctx.strokeRect(BX - 3, BY - 1, BOARD_R - BX + 6, BOARD_B - BY + 6);
+    ctx.strokeStyle = 'rgba(255,220,170,0.25)'; ctx.lineWidth = 2;
+    ctx.strokeRect(BX - 5, BY - 3, BOARD_R - BX + 10, BOARD_B - BY + 10);
+    ctx.restore();
+    // short picket fence where the Rotlings come in
+    const fenceDark = ['night', 'crystal', 'blight'].includes(this.world.mech);
+    for (let r = 0; r < ROWS; r++) {
+      for (const yy of [BY + r * TH + 18, BY + r * TH + 74]) {
+        ctx.fillStyle = fenceDark ? '#5a4a6a' : '#e8dcc0';
+        ctx.beginPath(); ctx.moveTo(BOARD_R + 4, yy); ctx.lineTo(BOARD_R + 10, yy - 10); ctx.lineTo(BOARD_R + 16, yy); ctx.lineTo(BOARD_R + 16, yy + 34); ctx.lineTo(BOARD_R + 4, yy + 34); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(40,24,12,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
     // tile states
     for (const r of this.activeRows) for (let c = 0; c < COLS; c++) {
       const tile = this.tiles[r][c];
@@ -1467,83 +1486,154 @@ export class Game {
   }
 
   _drawHud(ctx, t) {
-    const hudG = ctx.createLinearGradient(0, 0, 0, CARD_Y + CARD_H + 8);
-    hudG.addColorStop(0, 'rgba(70,46,28,0.95)'); hudG.addColorStop(1, 'rgba(44,28,16,0.95)');
+    const HB = CARD_Y + CARD_H + 10;
+    // wooden planter-box tray
+    const hudG = ctx.createLinearGradient(0, 0, 0, HB);
+    hudG.addColorStop(0, '#8a5a30'); hudG.addColorStop(0.55, '#6b4122'); hudG.addColorStop(1, '#4a2c14');
     ctx.fillStyle = hudG;
-    ctx.fillRect(0, 0, W, CARD_Y + CARD_H + 8);
-    ctx.fillStyle = '#8a6440';
-    ctx.fillRect(0, CARD_Y + CARD_H + 6, W, 4);
-    drawGlowMote(ctx, 58, 40, t, 26);
-    this._text(ctx, String(this.glow), 58, 94, 26, '#ffe9a0', 'center');
+    ctx.fillRect(0, 0, W, HB);
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 2;
+    for (let y = 14; y < HB; y += 22) { ctx.beginPath(); ctx.moveTo(0, y); ctx.bezierCurveTo(300, y + 4, 700, y - 4, W, y + 2); ctx.stroke(); }
+    ctx.fillStyle = '#3a2210'; ctx.fillRect(0, HB - 4, W, 4);
+    ctx.fillStyle = '#b07a44'; ctx.fillRect(0, HB - 7, W, 3);
+    // leafy vines draped along the bottom edge of the tray
+    for (let i = 0; i < 26; i++) {
+      const lx = i * 52 + (i % 2) * 18, ly = HB - 2 + (i % 3) * 3;
+      ctx.save(); ctx.translate(lx, ly); ctx.rotate(0.5 + Math.sin(t * 1.5 + i) * 0.08 + (i % 2) * 2.2);
+      ctx.fillStyle = i % 2 ? '#5fb84a' : '#4f9e3d';
+      ctx.beginPath(); ctx.ellipse(8, 0, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    // Glow badge
+    const gx = 60, gy = 52;
+    ctx.fillStyle = '#2a180a';
+    ctx.beginPath(); ctx.arc(gx, gy, 46, 0, Math.PI * 2); ctx.fill();
+    const bg = ctx.createRadialGradient(gx - 10, gy - 14, 4, gx, gy, 44);
+    bg.addColorStop(0, '#fff6c8'); bg.addColorStop(0.5, '#f0c050'); bg.addColorStop(1, '#a8701a');
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(gx, gy, 41, 0, Math.PI * 2); ctx.fill();
+    drawGlowMote(ctx, gx, gy - 10, t, 24);
+    ctx.fillStyle = 'rgba(40,22,8,0.8)';
+    ctx.beginPath(); ctx.roundRect(gx - 40, gy + 16, 80, 26, 13); ctx.fill();
+    this._text(ctx, String(this.glow), gx, gy + 37, 22, '#ffe9a0', 'center');
     if (this.potluck && !this.loadout.length) this._text(ctx, 'Tap pots on the right to break them!', CARD_X + 10, CARD_Y + 58, 20, '#fff4c8');
+
+    const ROLE_COL = { producer: '#f4b324', shooter: '#5cb84a', lobber: '#e8743a', homing: '#e8a03a', melee: '#3f9a6a', wall: '#a8743c', trap: '#a46ad0', instant: '#e0c030', healer: '#3fb8a0', snare: '#9a7a40', ground: '#6a9a3a', buff: '#a888e8' };
     const cw = this.cardW;
     for (let i = 0; i < this.loadout.length; i++) {
       const k = this.loadout[i];
       const def = GUARDIANS[k];
-      const x = CARD_X + i * (cw + CARD_GAP), y = CARD_Y;
+      const sel = this.selected === i;
+      const x = CARD_X + i * (cw + CARD_GAP), y = CARD_Y + (sel ? -4 : 2);
+      const ch = CARD_H - 4;
       const cost = this.costOf(k);
       const ready = this.cooldowns[i] <= 0 && this.glow >= cost;
-      const cg = ctx.createLinearGradient(0, y, 0, y + CARD_H);
-      cg.addColorStop(0, this.selected === i ? '#fff7c8' : '#fbf0d6'); cg.addColorStop(1, this.selected === i ? '#ffe27a' : '#e8d6ae');
+      const rc = ROLE_COL[def.kind] || '#8a8a8a';
+      // card body with role colour
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.roundRect(x + 2, y + 4, cw, ch, 12); ctx.fill();
+      const cg = ctx.createLinearGradient(0, y, 0, y + ch);
+      cg.addColorStop(0, '#fffaf0'); cg.addColorStop(1, '#efe0bc');
       ctx.fillStyle = cg;
-      ctx.beginPath(); ctx.roundRect(x, y, cw, CARD_H, 10); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.fill();
+      // portrait window
+      const pg = ctx.createRadialGradient(x + cw / 2, y + 30, 4, x + cw / 2, y + 40, cw * 0.7);
+      pg.addColorStop(0, '#ffffff'); pg.addColorStop(0.5, rc); pg.addColorStop(1, '#2a1a10');
       ctx.save();
-      ctx.beginPath(); ctx.roundRect(x, y, cw, CARD_H, 10); ctx.clip();
-      drawGuardian(ctx, k, x + cw / 2, y + 76, Math.min(84, cw * 0.95), t, { hat: this.cosmetics[k] && this.cosmetics[k].hat, skin: this.cosmetics[k] && this.cosmetics[k].skin });
+      ctx.beginPath(); ctx.roundRect(x + 5, y + 5, cw - 10, ch - 32, 9); ctx.clip();
+      ctx.fillStyle = pg; ctx.fillRect(x, y, cw, ch);
+      ctx.globalAlpha = 0.18; ctx.fillStyle = '#fff';
+      for (let j = 0; j < 5; j++) { ctx.beginPath(); ctx.moveTo(x + cw / 2, y + 30); ctx.arc(x + cw / 2, y + 30, cw, j * 1.26 + t * 0.2, j * 1.26 + 0.4 + t * 0.2); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      drawGuardian(ctx, k, x + cw / 2, y + ch - 30, Math.min(78, cw * 0.86), t, { hat: this.cosmetics[k] && this.cosmetics[k].hat, skin: this.cosmetics[k] && this.cosmetics[k].skin, seed: i });
       ctx.restore();
-      ctx.fillStyle = 'rgba(40,26,18,0.8)';
-      ctx.fillRect(x, y + CARD_H - 24, cw, 24);
-      this._text(ctx, this.potluck ? 'FREE' : String(cost), x + cw / 2, y + CARD_H - 5, 19, '#ffe9a0', 'center');
+      // cost pill
+      ctx.fillStyle = '#3a2210';
+      ctx.beginPath(); ctx.roundRect(x + 6, y + ch - 25, cw - 12, 21, 10); ctx.fill();
+      drawGlowMote(ctx, x + 18, y + ch - 14.5, t, 9);
+      this._text(ctx, this.potluck ? 'FREE' : String(cost), x + cw / 2 + 7, y + ch - 8, 17, ready ? '#ffe9a0' : '#d0a080', 'center');
+      // cooldown sweep
       if (!ready) {
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x, y, cw, CARD_H);
-        if (this.cooldowns[i] > 0) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x, y, cw, CARD_H * (this.cooldowns[i] / def.recharge)); }
+        ctx.fillStyle = 'rgba(20,10,30,0.45)';
+        ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.fill();
+        if (this.cooldowns[i] > 0) {
+          const f = this.cooldowns[i] / def.recharge;
+          const cx = x + cw / 2, cy = y + (ch - 28) / 2 + 4;
+          ctx.fillStyle = 'rgba(0,0,0,0.45)';
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, cw * 0.75, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.closePath(); ctx.fill();
+          this._text(ctx, String(Math.ceil(this.cooldowns[i])), cx, cy + 9, 24, '#fff', 'center');
+        }
       }
-      ctx.strokeStyle = this.selected === i ? '#ffd23a' : '#3d2816';
-      ctx.lineWidth = this.selected === i ? 4 : 2;
-      ctx.beginPath(); ctx.roundRect(x, y, cw, CARD_H, 10); ctx.stroke();
+      ctx.strokeStyle = sel ? '#fff27a' : '#3a2210';
+      ctx.lineWidth = sel ? 4 : 2.5;
+      ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
+      if (sel) { ctx.save(); ctx.shadowColor = '#ffe27a'; ctx.shadowBlur = 18; ctx.stroke(); ctx.restore(); }
+      // hotkey number
+      ctx.fillStyle = 'rgba(42,24,10,0.75)';
+      ctx.beginPath(); ctx.arc(x + 12, y + 12, 9, 0, Math.PI * 2); ctx.fill();
+      this._text(ctx, String(i + 1), x + 12, y + 17, 12, '#fff', 'center', false);
     }
-    // trowel
+    // trowel badge
     const sx = this._shovelX();
-    ctx.fillStyle = this.shovel ? '#ffd0c0' : '#c9b79a';
-    ctx.beginPath(); ctx.roundRect(sx, CARD_Y, 96, CARD_H, 10); ctx.fill();
+    this._roundBadge(ctx, sx + 48, CARD_Y + 44, 40, this.shovel ? '#ffb0a0' : '#d8c8a8');
     ctx.save();
-    ctx.translate(sx + 48, CARD_Y + 46); ctx.rotate(-0.7);
-    ctx.fillStyle = '#7a4a24'; ctx.fillRect(-5, 2, 10, 34);
-    ctx.fillStyle = '#b8c3cc'; ctx.beginPath(); ctx.moveTo(-16, 2); ctx.quadraticCurveTo(0, -46, 16, 2); ctx.closePath(); ctx.fill();
+    ctx.translate(sx + 48, CARD_Y + 44); ctx.rotate(-0.7);
+    ctx.fillStyle = '#7a4a24'; ctx.fillRect(-5, 4, 10, 26);
+    const tg = ctx.createLinearGradient(-16, -30, 16, 0); tg.addColorStop(0, '#eef4f8'); tg.addColorStop(1, '#8a98a4');
+    ctx.fillStyle = tg; ctx.beginPath(); ctx.moveTo(-15, 4); ctx.quadraticCurveTo(0, -40, 15, 4); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#2a1a14'; ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
-    this._text(ctx, 'Dig up', sx + 48, CARD_Y + CARD_H - 6, 18, '#3d2816', 'center', false);
+    this._text(ctx, 'Dig', sx + 48, CARD_Y + CARD_H - 4, 16, '#fff4d8', 'center');
 
-    // Wildseed button
+    // Wildseed panel
     const b = this._seedBtn();
     const active = this.seedMode;
-    ctx.fillStyle = active ? '#d8ffb0' : this.seeds > 0 ? '#3d6a2a' : '#2a1a10';
-    ctx.beginPath(); ctx.roundRect(b.x, b.y + 4, b.w, b.h - 8, 14); ctx.fill();
-    ctx.strokeStyle = this.seeds > 0 ? '#a8ff7a' : '#5a4a3a'; ctx.lineWidth = 3; ctx.stroke();
+    const sg = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+    sg.addColorStop(0, active ? '#eaffc8' : this.seeds > 0 ? '#4f8a32' : '#3a2a1a'); sg.addColorStop(1, active ? '#b8f07a' : this.seeds > 0 ? '#2f5a1e' : '#22160c');
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.roundRect(b.x, b.y + 4, b.w, b.h - 10, 16); ctx.fill();
+    ctx.strokeStyle = this.seeds > 0 ? '#c8ff8a' : '#5a4a3a'; ctx.lineWidth = 3; ctx.stroke();
+    if (this.seeds > 0 && !active) { ctx.save(); ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 4); ctx.shadowColor = '#a8ff7a'; ctx.shadowBlur = 16; ctx.stroke(); ctx.restore(); }
     for (let i = 0; i < this.maxSeeds; i++) {
-      ctx.globalAlpha = i < this.seeds ? 1 : 0.25;
-      drawWildseed(ctx, b.x + 22 + i * ((b.w - 44) / Math.max(1, this.maxSeeds - 1)), b.y + 40, 12, t + i);
+      ctx.globalAlpha = i < this.seeds ? 1 : 0.22;
+      drawWildseed(ctx, b.x + 22 + i * ((b.w - 44) / Math.max(1, this.maxSeeds - 1)), b.y + 36, 12, t + i);
     }
     ctx.globalAlpha = 1;
-    this._bar(ctx, b.x + 12, b.y + b.h - 26, b.w - 24, this.seedMeter / 100, '#a8ff7a');
-    this._text(ctx, active ? 'Pick a guardian!' : 'Wildseeds', b.x + b.w / 2, b.y + b.h - 30, 14, '#fff', 'center');
+    this._bar(ctx, b.x + 12, b.y + b.h - 22, b.w - 24, this.seedMeter / 100, '#a8ff7a');
+    this._text(ctx, active ? 'Pick a guardian!' : 'Wildseeds', b.x + b.w / 2, b.y + b.h - 28, 14, active ? '#2a4a10' : '#fff', 'center', !active);
 
-    if (this.potluck) this._text(ctx, `Pots left: ${this.potsLeft}`, W - 90, CARD_Y + CARD_H + 32, 18, '#fff', 'center');
-    else if (this.endless) this._text(ctx, `Wave ${this.wave}`, W - 80, CARD_Y + CARD_H + 32, 18, '#fff', 'center');
+    if (this.potluck) this._text(ctx, `Pots left: ${this.potsLeft}`, W - 90, CARD_Y + CARD_H + 36, 18, '#fff', 'center');
+    else if (this.endless) this._text(ctx, `Wave ${this.wave}`, W - 80, CARD_Y + CARD_H + 36, 18, '#fff', 'center');
     else this._drawFlagBar(ctx, t);
     if (this.level.challenge && !this.endless) {
       const ch = this.level.challenge;
       const txt = ch.maxPlants ? `★ Plant ≤ ${ch.maxPlants} (${this.stats.planted})` : ch.noLoss ? `★ Lose no guardians${this.stats.lost ? ' ✗' : ''}` : `★ Spend ≤ ${ch.spend} (${this.stats.spent})`;
-      this._text(ctx, txt, W - 12, H - 12, 15, '#fff4c8', 'right');
+      ctx.fillStyle = 'rgba(30,18,10,0.7)';
+      ctx.font = '800 15px "Trebuchet MS", sans-serif';
+      const tw = ctx.measureText(txt).width;
+      ctx.beginPath(); ctx.roundRect(W - tw - 26, H - 32, tw + 18, 26, 13); ctx.fill();
+      this._text(ctx, txt, W - 17, H - 13, 15, '#fff4c8', 'right');
     }
-    ctx.fillStyle = this.speed === 2 ? '#ffd23a' : '#c9b79a';
-    ctx.beginPath(); ctx.roundRect(W - 148, CARD_Y + 22, 66, 60, 12); ctx.fill();
-    this._text(ctx, this.speed === 2 ? '2x' : '1x', W - 115, CARD_Y + 62, 28, '#3d2816', 'center', false);
-    ctx.fillStyle = '#c9b79a';
-    ctx.beginPath(); ctx.roundRect(W - 74, CARD_Y + 22, 66, 60, 12); ctx.fill();
+    // speed + pause: glossy round buttons
+    this._roundBadge(ctx, W - 114, CARD_Y + 50, 30, this.speed === 2 ? '#ffd23a' : '#e8dcc0');
     ctx.fillStyle = '#3d2816';
-    ctx.fillRect(W - 52, CARD_Y + 36, 8, 32);
-    ctx.fillRect(W - 38, CARD_Y + 36, 8, 32);
+    for (let j = 0; j < (this.speed === 2 ? 2 : 1); j++) {
+      const ox = W - 122 + j * 12 - (this.speed === 2 ? 4 : -2);
+      ctx.beginPath(); ctx.moveTo(ox, CARD_Y + 38); ctx.lineTo(ox + 14, CARD_Y + 50); ctx.lineTo(ox, CARD_Y + 62); ctx.closePath(); ctx.fill();
+    }
+    this._roundBadge(ctx, W - 42, CARD_Y + 50, 30, '#e8dcc0');
+    ctx.fillStyle = '#3d2816';
+    ctx.beginPath(); ctx.roundRect(W - 52, CARD_Y + 37, 7, 26, 3); ctx.roundRect(W - 39, CARD_Y + 37, 7, 26, 3); ctx.fill();
+  }
+
+  _roundBadge(ctx, x, y, r, color) {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.arc(x + 1, y + 4, r, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.1, x, y, r);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, color); g.addColorStop(1, '#8a6a40');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#3a2210'; ctx.lineWidth = 3; ctx.stroke();
   }
 
   _drawFlagBar(ctx, t) {

@@ -181,7 +181,7 @@ const results = await page.evaluate(async () => {
 
 // Controller: mock a gamepad, steer the cursor onto the "Map" button with the stick and press A
 await page.evaluate(() => window.__bloomguard.show('title'));
-const target = await page.locator('text=Field Guide').boundingBox();
+const target = await page.locator('.sign:has-text("Lexicon")').boundingBox();
 await page.evaluate(({ tx, ty }) => {
   const pad = { connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
   navigator.getGamepads = () => [pad];
@@ -209,11 +209,11 @@ await page.evaluate(() => { window.__pad.axes = [0, 0, 0, 0]; window.__pad.butto
 await page.waitForTimeout(80);
 await page.evaluate(() => { window.__pad.buttons[0].pressed = false; });
 await page.waitForTimeout(80);
-if (!(await page.locator('.guide').count())) errors.push('gamepad A-press did not open the Field Guide');
+if (!(await page.locator('.lexicon').count())) errors.push('gamepad A-press did not open the Lexicon');
 
 // Exercise menus
 await page.evaluate(() => window.__bloomguard.show('guide'));
-await page.click('.guide-list .entry >> nth=0');
+await page.click('.lex-card >> nth=0'); await page.click('.tabs button >> nth=1'); await page.click('.tabs button >> nth=2');
 for (const s of ['settings', 'grove', 'trophies', 'store', 'nursery', 'daily', 'minigames', 'extras', 'title']) { await page.evaluate((s) => window.__bloomguard.show(s), s); await page.waitForTimeout(150); }
 // store: buy and equip a hat
 await page.evaluate(() => { window.__bloomguard.data.acorns = 5000; window.__bloomguard.show('store'); });

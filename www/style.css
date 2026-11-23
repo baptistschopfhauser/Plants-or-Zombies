@@ -335,3 +335,40 @@ button:active { box-shadow: 0 1px 0 #4a2c14, inset 0 2px 0 rgba(255,255,255,0.5)
   .chip { font-size: 14px; padding: 2px 8px; }
 }
 @media (max-width: 760px) and (orientation: landscape) { .menu-logo .tagline { display: none; } }
+
+/* ---------- Lexicon ---------- */
+.lexicon { flex: 1; min-height: 0; display: flex; gap: 14px; }
+.lex-left { flex: 0 0 min(400px, 40%); overflow-y: auto; touch-action: pan-y; padding: 12px 16px; }
+.lex-detail { display: flex; flex-direction: column; align-items: stretch; }
+.lex-portrait { width: 100%; max-width: 260px; aspect-ratio: 1; align-self: center; border-radius: 26px; border: 5px solid #6b4422; box-shadow: 0 6px 0 #4a2c14; }
+.lex-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.lex-title h2 { margin: 0; font-size: 28px; }
+.role { color: #fff; font-weight: 800; font-size: 14px; padding: 3px 12px; border-radius: 999px; text-shadow: 0 1px 0 rgba(0,0,0,0.4); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
+.boss-title { margin: 2px 0 0; font-style: italic; color: #8a2a6a; font-weight: 700; }
+.lex-stats { background: rgba(255,255,255,0.55); border-radius: 14px; padding: 8px 10px; margin: 8px 0; border: 2px solid #d8bf8a; }
+.stat-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.stat-pills span { background: #fff; border: 2px solid #c8a070; border-radius: 999px; padding: 1px 10px; font-weight: 800; font-size: 13px; }
+.stat-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; margin: 3px 0; }
+.stat-row span { width: 76px; }
+.stat-bar { flex: 1; height: 12px; background: rgba(0,0,0,0.15); border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
+.stat-bar i { display: block; height: 100%; border-radius: 999px; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15), inset 0 2px 0 rgba(255,255,255,0.35); }
+.lex-detail .desc { font-size: 16px; margin: 4px 0; }
+.lex-detail .over { color: #2f6b25; margin: 4px 0; }
+.lex-detail .lore { font-style: italic; color: #6a4a2a; margin: 6px 0; font-family: Georgia, serif; }
+.lex-detail .tip { background: #fff3c8; border-left: 5px solid #ffc93a; padding: 6px 10px; border-radius: 8px; margin: 4px 0; font-size: 14px; }
+.lex-right { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.lex-grid { flex: 1; overflow-y: auto; touch-action: pan-y; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; align-content: start; padding: 4px; }
+.lex-card { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; font-size: 13px; border-radius: 14px;
+  background: linear-gradient(#fff7e2, #e6d0a0); }
+.lex-card.on { background: linear-gradient(#fff3a8, #ffcf4a); outline: 3px solid #fff; transform: translateY(-2px); }
+.lex-card.locked { background: linear-gradient(#8a8170, #6a6150); color: #ddd; }
+.silhouette { filter: brightness(0) opacity(0.55); }
+@media (max-height: 460px) {
+  .lex-portrait { max-width: 150px; }
+  .lex-title h2 { font-size: 22px; }
+  .lex-left { flex-basis: 44%; }
+}
+@media (max-height: 460px) {
+  .lex-right .tabs button { font-size: 13px; padding: 4px 10px; }
+  .lex-card { font-size: 11px; }
+}

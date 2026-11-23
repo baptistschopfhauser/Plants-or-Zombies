@@ -1,7 +1,7 @@
 // Bloomguard — menus, story, progression and platform integration.
 import {
   GUARDIANS, ROTLINGS, ENEMY_INFO, WORLDS, LEVELS, LEVELS_PER_WORLD, ACHIEVEMENTS, MAX_RANK, RANK_COST, loadoutSlots,
-  HATS, SKINS, BOOSTS, MODIFIERS, POTLUCK, dailyLevel, todayKey,
+  HATS, SKINS, BOOSTS, MODIFIERS, POTLUCK, dailyLevel, todayKey, LORE, ROLES, BOSS_TITLES,
 } from './data.js';
 import { Game } from './game.js';
 import { drawGuardian, drawRotling, drawPortrait, drawBackdrop, makeDecor, drawClouds } from './art.js';
@@ -373,7 +373,7 @@ const SCREENS = {
           sign('Store', '🛍', () => show('store')),
           sign('Grove', '🌿', () => show('grove')),
           sign('Trophies', '🏆', () => show('trophies')),
-          sign('Field Guide', '📖', () => show('guide')),
+          sign('Lexicon', '📖', () => show('guide')),
           sign('Extras', '🎬', () => show('extras')),
           sign('Settings', '⚙', () => show('settings')),
           desktop ? sign('Quit', '🚪', () => desktop.quit()) : null,
@@ -801,15 +801,109 @@ const SCREENS = {
   guide() {
     stopGame();
     const owned = new Set(data.guardians);
-    const seenFoes = new Set();
-    for (let i = 0; i <= Math.min(data.unlockedLevel, LEVELS.length - 1); i++) { LEVELS[i].pool.forEach((k) => seenFoes.add(k)); if (LEVELS[i].boss && i < data.unlockedLevel) seenFoes.add(LEVELS[i].boss); }
-    const detail = el('div', { class: 'guide-detail' }, 'Tap an entry to read about it.');
-    const showG = (k, g) => { sfx('click'); detail.innerHTML = ''; detail.append(portrait(k, 120), el('h3', {}, g.name), el('p', {}, g.desc), g.over ? el('p', { class: 'over' }, '🌱 Overbloom: ' + g.over) : null, el('p', { class: 'stat' }, `Cost ${g.cost} · Health ${g.hp} · Recharge ${g.recharge}s`)); };
-    const showR = (k, r) => { sfx('click'); detail.innerHTML = ''; detail.append(portrait(k, 120, true), el('h3', {}, r.name), el('p', {}, ENEMY_INFO[k]), el('p', { class: 'stat' }, `Health ${r.hp + (r.shell || 0) + (r.shield || 0)} · Speed ${r.speed}`)); };
-    const gList = el('div', { class: 'guide-list' }, Object.entries(GUARDIANS).map(([k, g]) => owned.has(k) ? el('button', { class: 'entry', onclick: () => showG(k, g) }, portrait(k, 60), g.name) : el('div', { class: 'entry locked' }, '?')));
-    const eList = el('div', { class: 'guide-list' }, Object.entries(ROTLINGS).map(([k, r]) => seenFoes.has(k) ? el('button', { class: 'entry', onclick: () => showR(k, r) }, portrait(k, 60, true), r.name) : el('div', { class: 'entry locked' }, '?')));
-    ui.append(topbar('Field Guide', () => show('title')),
-      el('div', { class: 'guide' }, el('div', { class: 'col' }, el('h3', {}, 'Guardians'), gList, el('h3', {}, 'Rotlings'), eList), detail));
+    const seen = new Set();
+    for (let i = 0; i <= Math.min(data.unlockedLevel, LEVELS.length - 1); i++) {
+      LEVELS[i].pool.forEach((k) => seen.add(k));
+      if (LEVELS[i].boss && i < data.unlockedLevel) seen.add(LEVELS[i].boss);
+    }
+    let tab = 'guardians';
+    let sel = 'glowcap';
+    const detail = el('div', { class: 'lex-detail' });
+    const grid = el('div', { class: 'lex-grid' });
+    const big = el('canvas', { width: 440, height: 440, class: 'lex-portrait' });
+    const tabsEl = el('div', { class: 'tabs' });
+    const isBoss = (k) => !!ROTLINGS[k] && !!ROTLINGS[k].boss;
+    const lists = {
+      guardians: Object.keys(GUARDIANS),
+      rotlings: Object.keys(ROTLINGS).filter((k) => !isBoss(k)),
+      bosses: Object.keys(ROTLINGS).filter(isBoss),
+    };
+    const known = (k) => (GUARDIANS[k] ? owned.has(k) : seen.has(k));
+    const statBar = (label, v, color) => el('div', { class: 'stat-row' }, el('span', {}, label),
+      el('div', { class: 'stat-bar' }, el('i', { style: `width:${Math.round(Math.max(0.06, Math.min(1, v)) * 100)}%;background:${color}` })));
+    function renderDetail() {
+      detail.innerHTML = '';
+      const add = (...k) => detail.append(...k.filter(Boolean));
+      const g = GUARDIANS[sel];
+      const r = ROTLINGS[sel];
+      const [lore, tip] = LORE[sel] || ['', ''];
+      if (!known(sel)) {
+        add(big, el('h2', {}, '???'), el('p', {}, GUARDIANS[sel] ? 'Unlock this guardian on your adventure to learn about it.' : 'Meet this Rotling in battle to learn about it.'));
+        return;
+      }
+      add(big);
+      if (g) {
+        const role = ROLES[g.kind] || { name: g.kind, color: '#888' };
+        const dps = g.damage && g.interval ? g.damage / g.interval : g.cloudDps ? 40 : g.dps || g.heal || (g.amount ? 0 : 20);
+        add(
+          el('div', { class: 'lex-title' }, el('h2', {}, g.name), el('span', { class: 'role', style: `background:${role.color}` }, role.name)),
+          el('div', { class: 'lex-stats' },
+            el('div', { class: 'stat-pills' }, el('span', {}, `✦ Cost ${g.cost}`), el('span', {}, `⏱ Recharge ${g.recharge}s`), el('span', {}, `❤ Health ${g.hp}`)),
+            statBar('Toughness', Math.log10(g.hp) / Math.log10(4000), '#e0526a'),
+            statBar(g.kind === 'producer' ? 'Glow' : 'Power', g.kind === 'producer' ? g.amount / 30 : dps / 40, g.kind === 'producer' ? '#ffcf3a' : '#ff8a3a'),
+            statBar('Recharge', 1 - g.recharge / 36, '#5ab0ff')),
+          el('p', { class: 'desc' }, g.desc),
+          g.over ? el('p', { class: 'over' }, el('strong', {}, '🌱 Overbloom: '), g.over) : null,
+          el('p', { class: 'lore' }, '“' + lore + '”'),
+          el('p', { class: 'tip' }, el('strong', {}, 'Tip: '), tip));
+      } else {
+        add(
+          el('div', { class: 'lex-title' }, el('h2', {}, r.name), el('span', { class: 'role', style: `background:${r.boss ? '#c0408a' : '#7a5a9a'}` }, r.boss ? 'Boss' : 'Rotling')),
+          r.boss ? el('p', { class: 'boss-title' }, BOSS_TITLES[sel] || '') : null,
+          el('div', { class: 'lex-stats' },
+            el('div', { class: 'stat-pills' }, el('span', {}, `❤ Health ${r.hp + (r.shell || 0) + (r.shield || 0)}`), el('span', {}, `➤ Speed ${r.speed}`), el('span', {}, `🦷 Bite ${r.dps}/s`)),
+            statBar('Toughness', Math.log10(r.hp + (r.shell || 0) + (r.shield || 0)) / Math.log10(14000), '#e0526a'),
+            statBar('Speed', r.speed / 46, '#5ab0ff'),
+            statBar('Bite', r.dps / 700, '#ff8a3a')),
+          el('p', { class: 'desc' }, ENEMY_INFO[sel]),
+          el('p', { class: 'lore' }, '“' + lore + '”'),
+          el('p', { class: 'tip' }, el('strong', {}, 'How to beat it: '), tip));
+      }
+    }
+    function renderGrid() {
+      grid.innerHTML = '';
+      tabsEl.innerHTML = '';
+      for (const [k, label] of [['guardians', '🌱 Guardians'], ['rotlings', '🐛 Rotlings'], ['bosses', '♛ Bosses']]) {
+        const n = lists[k].filter(known).length;
+        tabsEl.append(el('button', { class: tab === k ? 'on' : '', onclick: () => { tab = k; sel = lists[k][0]; sfx('click'); renderGrid(); renderDetail(); } }, `${label} ${n}/${lists[k].length}`));
+      }
+      for (const k of lists[tab]) {
+        const ok = known(k);
+        const card = el('button', { class: `lex-card ${k === sel ? 'on' : ''} ${ok ? '' : 'locked'}`, onclick: () => { sel = k; sfx('click'); renderGrid(); renderDetail(); } });
+        const pc = portrait(k, 64, !GUARDIANS[k], GUARDIANS[k] ? data.equipped[k] : null);
+        if (!ok) pc.classList.add('silhouette');
+        card.append(pc, el('span', {}, ok ? (GUARDIANS[k] || ROTLINGS[k]).name : '???'));
+        grid.append(card);
+      }
+    }
+    // animated big portrait on a themed backdrop
+    const t0 = performance.now();
+    const anim = () => {
+      if (!big.isConnected) { if (screen === 'guide') requestAnimationFrame(anim); return; }
+      requestAnimationFrame(anim);
+      const ctx = big.getContext('2d');
+      const t = (performance.now() - t0) / 1000;
+      ctx.clearRect(0, 0, 440, 440);
+      const isG = !!GUARDIANS[sel];
+      const bg = ctx.createRadialGradient(220, 200, 20, 220, 220, 260);
+      bg.addColorStop(0, isG ? '#fff6d2' : '#e8d8f2'); bg.addColorStop(1, isG ? '#9fd88a' : '#6a4a8a');
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.roundRect(0, 0, 440, 440, 40); ctx.fill();
+      ctx.save(); ctx.globalAlpha = 0.15; ctx.translate(220, 230);
+      for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(320, -30); ctx.lineTo(320, 30); ctx.fill(); }
+      ctx.restore();
+      ctx.fillStyle = isG ? '#6fbf4a' : '#4a3a5a';
+      ctx.beginPath(); ctx.ellipse(220, 392, 170, 34, 0, 0, Math.PI * 2); ctx.fill();
+      if (!known(sel)) ctx.filter = 'brightness(0)';
+      if (isG) { const eq = data.equipped[sel] || {}; drawGuardian(ctx, sel, 220, 392, 290, t, { hat: eq.hat, skin: eq.skin, seed: 2 }); }
+      else { const d = ROTLINGS[sel]; drawRotling(ctx, { k: sel, x: 240, y: 392 + (d.flying ? 40 : 0), def: d, seed: 2, shell: d.shell || 0, shield: d.shield || 0, hurt: 0 }, d.boss ? 150 : d.big ? 210 : d.small ? 400 : 270, t); }
+      ctx.filter = 'none';
+    };
+    ui.append(topbar('Lexicon', () => show('title'), currencyBar()),
+      el('div', { class: 'lexicon' }, el('div', { class: 'lex-left panel' }, detail), el('div', { class: 'lex-right' }, tabsEl, grid)));
+    renderGrid();
+    renderDetail();
+    anim();
   },
 
   settings() {
@@ -837,7 +931,7 @@ const SCREENS = {
         } }, 'Reset progress'),
         el('p', { class: 'small' }, 'Bloomguard stores progress only on this device. No ads, no tracking, no accounts.'),
         el('p', { class: 'small' }, 'Controller: stick moves the cursor · A select · B back · Start pause · X speed · Y Wildseed'),
-        el('p', { class: 'small' }, 'Version 3.0.0 · All art and sound generated in code.'),
+        el('p', { class: 'small' }, 'Version 3.1.0 · All art and sound generated in code.'),
       ),
     );
     if (desktop) desktop.isFullscreen().then((v) => { const c = document.getElementById('fs-toggle'); if (c) c.checked = v; });
