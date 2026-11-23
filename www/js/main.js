@@ -11,7 +11,7 @@ import { sfx, startMusic, stopMusic, setAudio, unlockAudio } from './audio.js';
 import { SPEAKERS, scene } from './story.js';
 import * as store from './save.js';
 import { initGamepad } from './gamepad.js';
-import { loadSprites, setOverride, setBypass, entryFor, frameFor, drawEntry } from './sprites.js';
+import { loadSprites } from './sprites.js';
 
 const desktop = window.bloomDesktop || null;
 let data = store.load();
@@ -435,148 +435,7 @@ const SCREENS = {
         el('button', { class: 'big', onclick: () => { sfx('click'); playMovie('intro', () => show('extras')); } }, '🎬 Watch the intro movie'),
         el('button', { class: 'big', disabled: data.seenEnding ? false : '', onclick: () => { sfx('click'); playMovie('ending', () => show('extras')); } }, data.seenEnding ? '🎬 Watch the ending' : '🔒 Ending (defeat the Rot Monarch)'),
         el('button', { onclick: () => { data.seenStory = {}; persist(); toast('Story scenes will play again'); } }, '📜 Replay story scenes'),
-        el('button', { class: 'big', onclick: () => { sfx('click'); show('studio'); } }, '🎨 Art Studio: use your own art'),
         el('p', { class: 'small' }, 'Bloomguard: every character, scene, sound and song is original and generated in code.')));
-  },
-
-  studio() {
-    stopGame();
-    let group = 'guardians';
-    const lists = {
-      guardians: Object.keys(GUARDIANS),
-      rotlings: Object.keys(ROTLINGS),
-      portraits: ['wren', 'moss'],
-      backgrounds: WORLDS.map((w) => w.id),
-    };
-    let key = lists.guardians[0];
-    const tuning = { scale: 1, offsetX: 0, offsetY: 0, fps: 6, flip: false };
-    let files = { idle: [], attack: null };
-    const cv = el('canvas', { width: 900, height: 420, class: 'studio-canvas' });
-    const list = el('div', { class: 'studio-list' });
-    const tabs = el('div', { class: 'tabs' });
-    const json = el('textarea', { class: 'studio-json', readonly: '', rows: 4 });
-    const status = el('p', { class: 'small studio-status' });
-    const idleIn = el('input', { type: 'file', accept: 'image/png,image/webp', multiple: '' });
-    const atkIn = el('input', { type: 'file', accept: 'image/png,image/webp' });
-    const slider = (label, k, min, max, step) => {
-      const out = el('span', { class: 'val' }, String(tuning[k]));
-      const inp = el('input', { type: 'range', min, max, step, value: tuning[k], oninput: (e) => { tuning[k] = parseFloat(e.target.value); out.textContent = tuning[k]; apply(); } });
-      return el('label', { class: 'studio-slider' }, el('span', {}, label), inp, out);
-    };
-    const flipBox = el('input', { type: 'checkbox', onchange: (e) => { tuning.flip = e.target.checked; apply(); } });
-    const readImg = (file) => new Promise((res) => { const img = new Image(); img.onload = () => res({ img, name: file.name }); img.onerror = () => res(null); img.src = URL.createObjectURL(file); });
-    async function useFiles(fileList, slot) {
-      const got = (await Promise.all([...fileList].map(readImg))).filter(Boolean);
-      if (!got.length) { status.textContent = 'That file could not be read as an image.'; return; }
-      if (slot === 'attack') files.attack = got[0]; else files.idle = got.sort((a, b) => a.name.localeCompare(b.name));
-      apply();
-    }
-    idleIn.addEventListener('change', (e) => useFiles(e.target.files, 'idle'));
-    atkIn.addEventListener('change', (e) => useFiles(e.target.files, 'attack'));
-    cv.addEventListener('dragover', (e) => e.preventDefault());
-    cv.addEventListener('drop', (e) => { e.preventDefault(); useFiles(e.dataTransfer.files, 'idle'); });
-    function apply() {
-      if (files.idle.length) {
-        setOverride(group, key, { idle: files.idle.map((f) => f.img), attack: files.attack ? files.attack.img : null, hurt: null, ...tuning });
-        const spec = { idle: files.idle.length > 1 ? files.idle.map((f) => f.name) : files.idle[0].name };
-        if (files.attack) spec.attack = files.attack.name;
-        for (const k of ['scale', 'offsetX', 'offsetY']) if (tuning[k] !== (k === 'scale' ? 1 : 0)) spec[k] = tuning[k];
-        if (files.idle.length > 1) spec.fps = tuning.fps;
-        if (tuning.flip) spec.flip = true;
-        json.value = `"${key}": ${JSON.stringify(spec)}`;
-        status.textContent = `Previewing your art. Copy the line below into the "${group}" section of www/sprites/sprites.json and put the file(s) in www/sprites/${group}/.`;
-      } else {
-        setOverride(group, key, null);
-        json.value = '';
-        status.textContent = entryFor(group, key) ? 'This character already uses art from sprites.json.' : 'Using built-in code art. Drop a PNG on the preview, or pick files below.';
-      }
-    }
-    function select(k) {
-      setOverride(group, key, null);
-      key = k; files = { idle: [], attack: null };
-      Object.assign(tuning, { scale: 1, offsetX: 0, offsetY: 0, fps: 6, flip: false });
-      flipBox.checked = false;
-      renderUi();
-      apply();
-    }
-    function renderUi() {
-      tabs.innerHTML = '';
-      for (const [g, label] of [['guardians', '🌱 Guardians'], ['rotlings', '🐛 Rotlings'], ['portraits', '🙂 Portraits'], ['backgrounds', '🖼 Lawns']]) {
-        tabs.append(el('button', { class: g === group ? 'on' : '', onclick: () => { setOverride(group, key, null); group = g; select(lists[g][0]); } }, label));
-      }
-      list.innerHTML = '';
-      for (const k of lists[group]) {
-        const name = GUARDIANS[k] ? GUARDIANS[k].name : ROTLINGS[k] ? ROTLINGS[k].name : group === 'backgrounds' ? WORLDS.find((w) => w.id === k).name : k[0].toUpperCase() + k.slice(1);
-        list.append(el('button', { class: k === key ? 'on' : '', onclick: () => { sfx('click'); select(k); } }, name, entryFor(group, k) ? ' ✓' : ''));
-      }
-    }
-    function downloadTemplate() {
-      if (group === 'backgrounds') { status.textContent = 'Lawn backgrounds: paint a 1008 × 590 px image (9 × 5 tiles of 112 × 118 px).'; return; }
-      const c = document.createElement('canvas');
-      c.width = 512; c.height = 512;
-      const ctx = c.getContext('2d');
-      setBypass(true);
-      if (group === 'guardians') drawGuardian(ctx, key, 256, 500, 430, 0.3, {});
-      else if (group === 'rotlings') { const d = ROTLINGS[key]; drawRotling(ctx, { k: key, x: 280, y: 500, def: d, seed: 1, shell: d.shell || 0, shield: d.shield || 0, hurt: 0 }, d.boss ? 230 : d.big ? 290 : d.small ? 560 : 340, 0.3); }
-      else drawPortrait(ctx, key, 256, 500, 560, 0.3);
-      setBypass(false);
-      const a = document.createElement('a');
-      a.href = c.toDataURL('image/png');
-      a.download = `${key}-template.png`;
-      a.click();
-      status.textContent = `Downloaded ${key}-template.png: a 512 px reference with the correct size and anchor. Paint your own original version over it.`;
-    }
-    const t0 = performance.now();
-    const TILE_W = 112, TILE_H = 118, S = 1.7;
-    const frame = () => {
-      if (!cv.isConnected) { setOverride(group, key, null); return; }
-      requestAnimationFrame(frame);
-      const t = (performance.now() - t0) / 1000;
-      const ctx = cv.getContext('2d');
-      ctx.clearRect(0, 0, 900, 420);
-      const g = ctx.createLinearGradient(0, 0, 0, 420); g.addColorStop(0, '#9fd8ff'); g.addColorStop(1, '#e9f7ff');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 900, 420);
-      const bx = 60, by = 30, tw = TILE_W * S, th = TILE_H * S;
-      if (group === 'backgrounds') {
-        const e = entryFor('backgrounds', key);
-        const world = WORLDS.find((w) => w.id === key);
-        if (e) ctx.drawImage(e.idle[0], bx, by, tw * 4.6, th * 2);
-        else for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) { ctx.fillStyle = (r + c) % 2 ? world.ground[0] : world.ground[1]; ctx.fillRect(bx + c * tw * 1.15, by + r * th, tw * 1.15, th); }
-        return;
-      }
-      for (let i = 0; i < 2; i++) {
-        const x0 = bx + i * (tw + 220);
-        ctx.fillStyle = i ? '#74c04c' : '#8ad35e';
-        ctx.fillRect(x0, by + 90, tw, th);
-        ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2; ctx.strokeRect(x0, by + 90, tw, th); ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.font = '800 16px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(i ? 'Your art' : 'Built-in code art', x0 + tw / 2, by + 82);
-        const ax = x0 + tw / 2, ay = by + 90 + th - (group === 'rotlings' ? 10 : 8) * S;
-        if (i === 0) setBypass(true);
-        if (i === 1 && !entryFor(group, key)) { ctx.fillText('drop a PNG here', ax, ay - 60); setBypass(false); continue; }
-        if (group === 'guardians') drawGuardian(ctx, key, ax, ay, TILE_W * S, t, { fire: Math.sin(t * 2) > 0.9 ? 1 : 0 });
-        else if (group === 'rotlings') { const d = ROTLINGS[key]; drawRotling(ctx, { k: key, x: ax, y: ay, def: d, seed: 1, shell: d.shell || 0, shield: d.shield || 0, hurt: 0, eating: Math.sin(t) > 0.5 }, TILE_W * S, t); }
-        else drawPortrait(ctx, key, ax, ay, 220, t, Math.sin(t * 2) > 0);
-        setBypass(false);
-        // anchor point
-        ctx.fillStyle = '#ff3b6b'; ctx.beginPath(); ctx.arc(ax, ay, 5, 0, Math.PI * 2); ctx.fill();
-      }
-    };
-    ui.append(topbar('Art Studio', () => { setOverride(group, key, null); show('extras'); }),
-      el('div', { class: 'studio' },
-        el('div', { class: 'studio-side panel' }, tabs, list),
-        el('div', { class: 'studio-main panel' }, cv, status,
-          el('div', { class: 'studio-controls' },
-            el('label', { class: 'file-btn' }, '📁 Idle image(s)', idleIn),
-            el('label', { class: 'file-btn' }, '⚔ Attack image', atkIn),
-            slider('Scale', 'scale', 0.4, 2, 0.05), slider('Move X', 'offsetX', -0.6, 0.6, 0.01), slider('Move Y', 'offsetY', -0.6, 0.6, 0.01), slider('Anim fps', 'fps', 1, 24, 1),
-            el('label', { class: 'studio-slider' }, el('span', {}, 'Flip'), flipBox),
-            el('button', { onclick: downloadTemplate }, '⬇ Download template'),
-            el('button', { onclick: () => { if (!json.value) return; json.select(); navigator.clipboard && navigator.clipboard.writeText(json.value); toast('Copied! Paste it into sprites.json'); } }, '📋 Copy JSON')),
-          json)));
-    renderUi();
-    apply();
-    frame();
   },
 
   daily() {

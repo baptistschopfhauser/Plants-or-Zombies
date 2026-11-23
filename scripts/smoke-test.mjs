@@ -214,7 +214,7 @@ if (!(await page.locator('.lexicon').count())) errors.push('gamepad A-press did 
 // Exercise menus
 await page.evaluate(() => window.__bloomguard.show('guide'));
 await page.click('.lex-card >> nth=0'); await page.click('.tabs button >> nth=1'); await page.click('.tabs button >> nth=2');
-for (const s of ['settings', 'grove', 'trophies', 'store', 'nursery', 'daily', 'minigames', 'extras', 'studio', 'title']) { await page.evaluate((s) => window.__bloomguard.show(s), s); await page.waitForTimeout(150); }
+for (const s of ['settings', 'grove', 'trophies', 'store', 'nursery', 'daily', 'minigames', 'extras', 'title']) { await page.evaluate((s) => window.__bloomguard.show(s), s); await page.waitForTimeout(150); }
 // store: buy a boost (cosmetics are switched off)
 await page.evaluate(() => { window.__bloomguard.data.acorns = 5000; window.__bloomguard.show('store'); });
 if (await page.locator('text=Hats').count()) errors.push('cosmetics still visible in the store');

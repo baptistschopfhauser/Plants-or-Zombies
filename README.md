@@ -16,7 +16,7 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
   - *The Rotheart:* spreading blight
 - **Level goals:** defend, protect the sprouts, fixed budget, or a set loadout, plus a three-star challenge on every level.
 - **18 guardians** with distinct roles (producers, shooters, walls, traps, melee, snares, homing bees, lobbers, healers, buffs, ground spikes). Each has a unique **Overbloom** super powered by Wildseeds.
-- **20 Rotlings**, including shields, ranged spitters, healers, burrowers, exploders, freezers, armor, and 6 bosses with their own attacks.
+- **21 Rotlings**, including shields, ranged spitters, healers, burrowers, exploders, freezers, armor and the sideways-scuttling Rot Crab, plus 6 bosses with their own attacks.
 - **Progression:** petals and the Grove (permanent upgrades), loadout slots that grow from 6 to 8, in-battle ★★★ upgrades, 16 trophies, and an Endless mode that travels through every world.
 - **Animation:** an animated, skippable intro movie; living story scenes where characters walk in, react and emote; boss entrance cinematics with title cards; an animated ending with credits.
 - **Modes:**
@@ -24,8 +24,8 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
   - *Bonk the Blight* reaction mini-game
   - a seeded *Daily Challenge* with modifiers and a streak counter
   - a real-time *Zen Nursery*
-- **Acorn economy and Store:** 10 hats, 5 colour skins (rendered with a fast per-colour transform, no canvas filters) and 5 permanent boosts.
-- **Polished toy-like art:** toon shading with specular gloss, rim light and coloured outlines, big glossy eyes with brows, veined leaves, and leafy rooted bases. Rotlings were redesigned as one-eyed rot-gourd creatures with walk cycles, noodle arms, teeth, drool and toadstools.
+- **Acorn economy and Store:** 5 permanent boosts. (Hats and colour skins exist in the code but are switched off for now: `COSMETICS_ENABLED` in `www/js/data.js`.)
+- **Art:** clean, outline-free cartoon characters with soft shading, big readable faces and squash-and-stretch animation, all drawn in code. Every character, portrait and lawn can be **replaced with your own painted artwork** (see [Using your own art](#using-your-own-art)).
 - **Lexicon:** an animated portrait for every guardian, Rotling and boss, with role badge, stat bars, description, Overbloom, lore and a strategy tip. Undiscovered entries show as silhouettes.
 - **Storybook art and UI:** an animated parallax main menu with wooden signboards, painterly pre-rendered lawns, soft key lighting, clouds, squash-and-stretch and pop-in animation, hit knockback, and a wave progress bar with flags.
 - Controller support (Steam Deck / Xbox / PlayStation) with a stick-driven cursor. Keyboard: 1–8 pick cards, W Wildseed, Space speed, P/Esc pause.
@@ -33,7 +33,7 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
 
 ## Original IP: why this is safe to publish
 - **Everything is original.** Name, characters, creature designs, world names, level design, UI, code, art and audio were all made for this project.
-- **No image or audio files from anywhere else.** All art is drawn procedurally in `www/js/art.js`, and all sound is synthesized in `www/js/audio.js`. The icon, feature graphic and screenshots are rendered from that same code (`scripts/make-assets.mjs`).
+- **No image or audio files from anywhere else.** All built-in art is drawn procedurally in `www/js/art.js`, and all sound is synthesized in `www/js/audio.js`. The icon, feature graphic and screenshots are rendered from that same code (`scripts/make-assets.mjs`). Any painted artwork you add later must also be original, with full commercial rights.
 - **Game mechanics are not copyrightable.** Lane defense, resource generation and unit placement are a genre shared by many games. Specific expression is protected: names, characters, art, sounds, text and trademarks. Bloomguard reuses none of these from any existing game.
 - **Keep it that way when you publish:**
   - Don't mention "Plants vs. Zombies", PopCap, EA or any other game in the store title, description, tags or keywords on Play or Steam. That is trademark misuse and a common reason both stores reject apps.
@@ -51,22 +51,45 @@ www/                  the game (plain HTML/CSS/JS ES modules, no build step)
   js/story.js         story script
   js/cinema.js        animated intro + ending movies
   js/bonk.js          Bonk the Blight mini-game
-  privacy.html        privacy policy (hosted by GitHub Pages)
   js/gamepad.js       controller cursor support
+  js/sprites.js       loads optional painted artwork from www/sprites/
+  sprites/            your artwork + sprites.json (empty = built-in code art)
+  privacy.html        privacy policy (hosted by GitHub Pages)
+dev/                  developer-only tools, never shipped in the app
+  art-studio.html     Art Studio: preview, normalise and export your own artwork
 android/              Capacitor Android project (landscape, immersive full-screen)
 desktop/              Electron shell for Windows / macOS / Linux (Steam)
 steam/scripts/        SteamPipe build scripts for manual uploads
 store/                Play Store listing, icon, feature graphic, screenshots
 store/steam/          Steam store text + every capsule / library image
-scripts/              asset generator + headless gameplay smoke test
+scripts/              store asset generator, art template exporter, headless gameplay smoke test
+ART_GUIDE.md          full guide for adding painted artwork
 ```
 
 ## Run it
 ```bash
 npm install
 npm run serve          # play in a browser at http://localhost:8080
-npm test               # headless bot plays all 15 levels + endless (needs Playwright)
+npm test               # headless bot plays all 36 levels, Pot Luck, daily challenges and Endless (needs Playwright)
+npm run studio         # developer Art Studio at http://localhost:8090/dev/art-studio.html
+npm run templates      # export size-correct art templates for every character to art-templates/
 ```
+
+## Using your own art
+Every guardian, Rotling, story portrait and world lawn can be swapped for painted artwork without
+touching the game code. Anything you don't replace keeps the built-in code art, so you can do it
+one character at a time.
+
+1. `npm run studio` opens the **Art Studio**. It's a **developer tool in `dev/`**: it is not in the
+   game menus and is never packaged into the Android or Steam builds.
+2. Pick a character, drop in your PNG (several files make an animated idle loop; an optional attack
+   image plays while shooting or biting) and compare it with the built-in art at real in-game size.
+3. **Export normalised PNG(s):** the Studio trims empty space, scales characters to **512 px tall**
+   with the feet on the bottom-centre (lawns to **1008 × 590 px**) and names the files for you.
+4. Put the files in `www/sprites/<guardians|rotlings|portraits|backgrounds>/`, copy the JSON line
+   into `www/sprites/sprites.json`, and reload. Your art is now used everywhere in the game.
+
+Sizes, anchors, file names, animation options and originality rules are in [`ART_GUIDE.md`](ART_GUIDE.md).
 
 ## Build for Android
 Requirements: Node 22+, JDK 21, Android SDK (install Android Studio).
@@ -141,4 +164,4 @@ The desktop app starts fullscreen (F11 or Alt+Enter toggles it; `--windowed` sta
 The app ID is `io.github.bloomguard.game` (final). CI checks it in the built bundle.
 
 ## License
-Code: MIT (see `LICENSE`). All game art and audio are generated by this code and fall under the same license.
+Code: MIT (see `LICENSE`). The built-in art and audio are generated by this code and fall under the same license. Painted artwork added under `www/sprites/` is covered by whatever rights you hold for it.

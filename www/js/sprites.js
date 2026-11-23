@@ -2,8 +2,8 @@
 //
 // Any character, portrait or world background listed in sprites/sprites.json is drawn from your own
 // image files instead of the built-in code art. Anything not listed keeps the code art, so artwork
-// can be added one piece at a time. The in-game Art Studio (Extras → Art Studio) previews images
-// live and writes the matching JSON for you.
+// can be added one piece at a time. The developer Art Studio (dev/art-studio.html, `npm run studio`)
+// previews images live, normalises their size and writes the matching JSON. It is not part of the app.
 //
 // Manifest entry formats (per character):
 //   "thornling": "thornling.png"                                  single image
@@ -28,10 +28,11 @@ function loadImage(src) {
   });
 }
 
+let BASE = '';
 async function buildEntry(group, spec) {
   const o = typeof spec === 'string' ? { idle: spec } : { ...spec };
   const list = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
-  const load = async (files) => (await Promise.all(list(files).map((f) => loadImage(`sprites/${group}/${f}`)))).filter(Boolean);
+  const load = async (files) => (await Promise.all(list(files).map((f) => loadImage(`${BASE}sprites/${group}/${f}`)))).filter(Boolean);
   const idle = await load(o.idle || o.image);
   if (!idle.length) return null;
   return {
@@ -46,9 +47,11 @@ async function buildEntry(group, spec) {
   };
 }
 
-export async function loadSprites() {
+// `base` lets the developer Art Studio (dev/art-studio.html) load the game's sprites from ../www/.
+export async function loadSprites(base = '') {
+  BASE = base;
   try {
-    const res = await fetch('sprites/sprites.json', { cache: 'no-cache' });
+    const res = await fetch(`${BASE}sprites/sprites.json`, { cache: 'no-cache' });
     if (res.ok) {
       const manifest = await res.json();
       const jobs = [];

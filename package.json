@@ -15,7 +15,9 @@
     "desktop": "electron . --windowed",
     "desktop:win": "electron-builder --win --x64",
     "desktop:linux": "electron-builder --linux --x64",
-    "desktop:mac": "electron-builder --mac --universal"
+    "desktop:mac": "electron-builder --mac --universal",
+    "studio": "npx --yes http-server . -p 8090 -c-1 -o /dev/art-studio.html",
+    "templates": "node scripts/export-templates.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",

@@ -14,19 +14,27 @@ be added one character at a time.
 - **Style target:** soft painted shading, no heavy black outlines, big readable faces, chunky
   silhouettes that read at 100 px tall on a phone.
 
-## How to add your own art (the easy way: Art Studio)
-1. In the game open **Extras → 🎨 Art Studio** and pick a character (Guardians, Rotlings, Portraits or Lawns).
-2. Press **⬇ Download template** to get a 512 px picture with the exact size and anchor. Paint your
-   own original version over it (or use it as a size reference).
-3. Drop your PNG onto the preview, or use **📁 Idle image(s)**. Pick several files for an animated
-   idle loop (they play in name order) and optionally an **⚔ Attack image** (used while shooting or biting).
-4. Adjust **Scale**, **Move X / Y**, **Anim fps** and **Flip** until it sits nicely on the tile
-   (the red dot is the anchor: feet or root go there).
-5. Press **📋 Copy JSON**, paste the line into the matching section of `www/sprites/sprites.json`,
-   and copy the image files into `www/sprites/<group>/`. Reload: it is now used everywhere
-   (battlefield, cards, Lexicon, Store, menus).
+## How to add your own art: the Art Studio developer tool
+The Art Studio is a **developer tool in this repository** (`dev/art-studio.html`). It is **not part of
+the game** and is never included in the Android or Steam builds.
 
-All templates at once: `node scripts/export-templates.mjs` writes them to `art-templates/`.
+1. Run `npm run studio`. It opens `http://localhost:8090/dev/art-studio.html` in your browser.
+2. Pick a character (Guardians, Rotlings, Portraits or Lawns).
+3. Optionally press **⬇ Download template** to get a correctly sized reference to paint over.
+4. Drop your PNG onto the preview, or use **📁 Idle image(s)**. Pick several files for an animated
+   idle loop (they play in name order) and optionally an **⚔ Attack image** (used while shooting or biting).
+5. The Studio **normalises your art automatically**:
+   - characters are trimmed to their visible pixels, scaled to **512 px tall** and placed with the
+     feet or root on the bottom-centre;
+   - lawns are resized to **1008 × 590 px**.
+   Your art is shown next to the built-in art at real in-game size (the red dot is the anchor).
+   Fine-tune with **Scale**, **Move X / Y**, **Anim fps** and **Flip** if needed.
+6. Press **⬇ Export normalised PNG(s)**: you get correctly named files (`thornling.png`,
+   `thornling_idle1.png`, `thornling_attack.png`, `dawn-lawn.png`, ...).
+7. Put them in `www/sprites/<group>/`, press **📋 Copy JSON** and paste the line into the matching
+   section of `www/sprites/sprites.json`. Reload the game: your art is used everywhere.
+
+All templates at once: `npm run templates` writes them to `art-templates/` (not committed).
 
 ## sprites.json format
 ```json
