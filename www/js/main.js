@@ -979,7 +979,7 @@ const SCREENS = {
         } }, 'Reset progress'),
         el('p', { class: 'small' }, 'Bloomguard stores progress only on this device. No ads, no tracking, no accounts.'),
         el('p', { class: 'small' }, 'Controller: stick moves the cursor · A select · B back · Start pause · X speed · Y Wildseed'),
-        el('p', { class: 'small' }, 'Version 3.1.0 · All art and sound generated in code.'),
+        el('p', { class: 'small' }, 'Version 3.2.0 · All art and sound generated in code.'),
       ),
     );
     if (desktop) desktop.isFullscreen().then((v) => { const c = document.getElementById('fs-toggle'); if (c) c.checked = v; });
