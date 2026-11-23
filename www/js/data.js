@@ -96,6 +96,7 @@ export const ROTLINGS = {
   frostcrawler:{ name: 'Frostcrawler', hp: 380, speed: 19, dps: 90, cost: 3, color: '#6f9fc8', freezes: true, frostproof: true },
   crystalback:{ name: 'Crystalback', hp: 700, speed: 15, dps: 110, cost: 4.5, color: '#7a8fd6', armor: 0.5 },
   rotpriest: { name: 'Rot Priest', hp: 420, speed: 16, dps: 60, cost: 4, color: '#6b4a7a', heals: 35 },
+  rotcrab:   { name: 'Rot Crab', hp: 380, speed: 26, dps: 110, cost: 3, color: '#c8603a', crab: true },
   brute:     { name: 'Mossbrute', hp: 1500, speed: 13, dps: 220, cost: 6, color: '#56634a', big: true, crushes: true },
   // Bosses (one per world)
   grubmother:{ name: 'Grubmother', hp: 3200, speed: 8, dps: 400, cost: 0, color: '#8a6a9c', boss: 'summon', summon: 'grub', every: 7, crushes: true },
@@ -120,6 +121,7 @@ export const ENEMY_INFO = {
   frostcrawler: 'Its frosty bite freezes guardians in place. Immune to slowing.',
   crystalback: 'Crystal armor halves damage from thorns, chimes, pollen and bees.',
   rotpriest: 'Heals the Rotlings around it. Take it out first!',
+  rotcrab: 'Scuttles in sideways and snaps guardians with one huge claw.',
   brute: 'Huge, tough and hits like a falling tree. Crushes bramble.',
   grubmother: 'A colossal grub that keeps birthing more grubs.',
   bogmaw: 'Swamp horror. Calls swarms from the mud.',
@@ -165,13 +167,13 @@ export const LEVELS = [
   L(1, { waves: 6, pool: ['grub', 'burrower', 'skitter'], reward: 'rootsnare', budget: 7, challenge: { noLoss: true } }),
   L(1, { waves: 7, pool: ['grub', 'shieldbug', 'swarm'], reward: 'lanceleaf', budget: 8, challenge: { spend: 2600 } }),
   L(1, { goal: 'budget', waves: 5, pool: ['grub', 'skitter', 'burrower'], reward: 'stormseed', budget: 6, startGlow: 1600, challenge: { maxPlants: 14 } }),
-  L(1, { waves: 7, pool: ['grub', 'spore', 'moth', 'shieldbug'], reward: 'pollenpuff', budget: 9, challenge: { noLoss: true } }),
+  L(1, { waves: 7, pool: ['grub', 'spore', 'moth', 'shieldbug', 'rotcrab'], reward: 'pollenpuff', budget: 9, challenge: { noLoss: true } }),
   L(1, { boss: 'bogmaw', waves: 7, pool: ['grub', 'swarm', 'burrower', 'shieldbug', 'spore'], reward: 'hivebloom', budget: 9, challenge: { spend: 3500 } }),
   // 3 — Ember Orchard
   L(2, { waves: 7, pool: ['grub', 'skitter', 'emberbeast'], reward: 'emberroot', budget: 8, challenge: { maxPlants: 18 } }),
   L(2, { waves: 7, pool: ['grub', 'shieldbug', 'spitter'], reward: 'bramblemat', budget: 9, challenge: { noLoss: true } }),
   L(2, { goal: 'sprouts', waves: 7, pool: ['swarm', 'skitter', 'emberbeast', 'moth'], reward: null, budget: 9, challenge: { spend: 3000 } }),
-  L(2, { waves: 8, pool: ['grub', 'shellback', 'spitter', 'emberbeast'], reward: 'twinbud', budget: 10, challenge: { noLoss: true } }),
+  L(2, { waves: 8, pool: ['grub', 'shellback', 'spitter', 'emberbeast', 'rotcrab'], reward: 'twinbud', budget: 10, challenge: { noLoss: true } }),
   L(2, { goal: 'given', given: ['glowcap', 'thornling', 'emberroot', 'barkwall', 'puffball', 'vinewhip'], waves: 7, pool: ['grub', 'shieldbug', 'emberbeast', 'spore'], reward: null, budget: 10, challenge: { maxPlants: 20 } }),
   L(2, { boss: 'cinderhusk', waves: 8, pool: ['grub', 'skitter', 'emberbeast', 'spitter', 'brute'], reward: 'boulderbud', budget: 11, challenge: { noLoss: true } }),
   // 4 — Frostpeak Terraces
@@ -292,7 +294,7 @@ export function dailyLevel(key = todayKey(), unlockedLevel = 36) {
   const rnd = seeded(hashStr('bloomguard-' + key));
   const maxWorld = Math.max(0, Math.min(WORLDS.length - 1, Math.floor(unlockedLevel / LEVELS_PER_WORLD)));
   const world = Math.floor(rnd() * (maxWorld + 1));
-  const foes = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
+  const foes = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'rotcrab', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
   const avail = foes.slice(0, 5 + world * 2);
   const pool = [];
   while (pool.length < 4) { const k = avail[Math.floor(rnd() * avail.length)]; if (!pool.includes(k)) pool.push(k); }
@@ -356,6 +358,7 @@ export const LORE = {
   frostcrawler: ['Frostcrawlers leave tiny icicles wherever they nap.', 'Their bite freezes guardians. Snipe them before they arrive.'],
   crystalback: ['Its crystals grow one millimetre each full moon.', 'Thorns and chimes barely scratch it. Use fire, lances and boulders.'],
   rotpriest: ['Rot Priests chant lullabies to the blight.', 'It heals everything nearby. Make it your first target.'],
+  rotcrab: ['Rot Crabs wear old snail shells as hats when nobody is looking.', 'Its shell is thick but its legs are not. Lobbed fire and bees work well.'],
   brute: ['A Mossbrute once ate an entire hedge. On purpose.', 'Hits very hard and crushes Bramblemats. Stack damage in its lane.'],
   grubmother: ['She has two hundred children and remembers none of their names.', 'Keep killing the Grubs she births, or you will be overrun.'],
   bogmaw: ['Bogmaw has lived in the same puddle for a thousand years.', 'Swarms come in waves, so keep splash damage ready.'],

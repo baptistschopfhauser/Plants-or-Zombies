@@ -12,7 +12,7 @@ const BOARD_R = BX + COLS * TW;
 const BOARD_B = BY + ROWS * TH;
 const CARD_X = 124, CARD_H = 100, CARD_Y = 6, CARD_GAP = 6;
 const STEP = 1 / 60;
-const NON_BOSS = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
+const NON_BOSS = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'rotcrab', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
 const BOSSES = ['grubmother', 'bogmaw', 'cinderhusk', 'rimefang', 'gloomwyrm', 'monarch'];
 
 const rand = (a, b) => a + Math.random() * (b - a);

@@ -788,6 +788,7 @@ function drawRotlingInner(ctx, e, s, t) {
     ctx.restore();
     return;
   }
+  if (d.crab) { drawRotCrab(ctx, e, s, t, x, y, r, walk, chew); ctx.restore(); return; }
   const flyY = d.flying ? -s * 0.38 + Math.sin(t * 4 + e.seed) * 7 : 0;
   const hop = e.confused > 0 ? Math.abs(Math.sin(t * 10)) * 7 : 0;
   shadow(ctx, x, y - s * 0.04, r * (d.flying ? 0.7 : 1.25));
@@ -1028,6 +1029,82 @@ function drawRotlingInner(ctx, e, s, t) {
   }
   if (e.confused > 0) for (let i = 0; i < 3; i++) { const a = t * 5 + i * 2.1; star(ctx, cx + Math.cos(a) * r * 0.7, bodyT - r * 0.25 + Math.sin(a) * r * 0.15, Math.max(4, r * 0.15), '#fff1a8'); }
   ctx.restore();
+}
+
+// Original "Rot Crab": a wide mossy shell, six scuttling legs, one oversized claw, one big stalk eye.
+function drawRotCrab(ctx, e, s, t, x, y, r, walk, chew) {
+  const body = e.slow > 0 ? '#8fb7e0' : e.def.color;
+  const ink = inkFor(body);
+  const sc = Math.sin(walk * 1.4) * r * 0.06;
+  shadow(ctx, x, y - s * 0.04, r * 1.5);
+  const cy = y - r * 0.75 + sc * 0.3;
+  // legs
+  for (let i = 0; i < 3; i++) for (const sg of [-1, 1]) {
+    const ph = Math.sin(walk * 1.4 + i * 2 + (sg > 0 ? 1 : 0));
+    const lx = x + sg * r * (0.5 + i * 0.25), ly = cy + r * 0.2;
+    const kx = lx + sg * r * 0.45, ky = ly - r * 0.15 + ph * r * 0.08;
+    const fx = kx + sg * r * 0.15 + ph * r * 0.1, fy = y - r * 0.05;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = ink; ctx.lineWidth = r * 0.17;
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.strokeStyle = tint(body, -0.1); ctx.lineWidth = r * 0.1;
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+  }
+  // small back claw
+  blob(ctx, x + r * 0.95, cy - r * 0.35, r * 0.2, r * 0.15, body, s * 0.6);
+  // shell
+  ctx.beginPath();
+  ctx.moveTo(x - r * 1.2, cy + r * 0.25);
+  ctx.bezierCurveTo(x - r * 1.25, cy - r * 0.95, x + r * 1.25, cy - r * 0.95, x + r * 1.2, cy + r * 0.25);
+  ctx.quadraticCurveTo(x, cy + r * 0.55, x - r * 1.2, cy + r * 0.25);
+  ctx.closePath();
+  ctx.fillStyle = shadeFill(ctx, x, cy - r * 0.2, r * 1.2, body); ctx.fill();
+  ctx.save(); ctx.clip();
+  for (const [dx, dy, rr] of [[-0.5, -0.3, 0.16], [0.3, -0.45, 0.12], [0.7, -0.05, 0.1], [-0.1, 0.05, 0.09]]) circle(ctx, x + dx * r, cy + dy * r, rr * r, tint(body, -0.22));
+  ctx.restore();
+  lineColor = ink; outline(ctx, s, 0.032); lineColor = null;
+  glossy(ctx, x, cy - r * 0.25, r * 1.05, r * 0.6);
+  // moss + toadstool on the shell
+  for (let i = 0; i < 5; i++) circle(ctx, x - r * 0.4 + i * r * 0.2, cy - r * 0.68 + Math.sin(i * 2) * r * 0.04, r * 0.13, i % 2 ? '#7a9a52' : '#5f7d40');
+  ctx.fillStyle = '#f0e6d0'; ctx.fillRect(x + r * 0.22, cy - r * 1.02, r * 0.07, r * 0.3);
+  ctx.beginPath(); ctx.ellipse(x + r * 0.255, cy - r * 1.02, r * 0.16, r * 0.1, 0, Math.PI, 0); ctx.closePath();
+  ctx.fillStyle = '#d9584a'; ctx.fill(); lineColor = inkFor('#d9584a'); outline(ctx, s, 0.012); lineColor = null;
+  // stalk eye (looking toward the garden)
+  const ex = x - r * 0.45, ey = cy - r * 1.05 + Math.sin(t * 3 + e.seed) * r * 0.05;
+  ctx.strokeStyle = ink; ctx.lineWidth = r * 0.14;
+  ctx.beginPath(); ctx.moveTo(x - r * 0.35, cy - r * 0.55); ctx.quadraticCurveTo(x - r * 0.5, cy - r * 0.8, ex, ey + r * 0.2); ctx.stroke();
+  ctx.strokeStyle = tint(body, 0.1); ctx.lineWidth = r * 0.08;
+  ctx.beginPath(); ctx.moveTo(x - r * 0.35, cy - r * 0.55); ctx.quadraticCurveTo(x - r * 0.5, cy - r * 0.8, ex, ey + r * 0.2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(ex, ey, r * 0.3, r * 0.28, 0, 0, TAU);
+  ctx.fillStyle = '#fffbe6'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.8, r * 0.06); ctx.stroke();
+  const conf = e.confused > 0;
+  const px = conf ? ex + Math.cos(t * 12) * r * 0.1 : ex - r * 0.1;
+  circle(ctx, px, ey + r * 0.02, r * 0.14, '#d0384e');
+  circle(ctx, px, ey + r * 0.02, r * 0.07, '#14080c');
+  circle(ctx, px - r * 0.05, ey - r * 0.04, r * 0.04, '#fff');
+  ctx.fillStyle = tint(body, -0.3);
+  ctx.beginPath(); ctx.ellipse(ex, ey - r * 0.2, r * 0.32, r * 0.12, -0.2, Math.PI, 0); ctx.fill();
+  // mouth
+  ctx.fillStyle = '#2a0f1e';
+  ctx.beginPath(); ctx.ellipse(x - r * 0.75, cy + r * 0.08, r * 0.2, r * (0.05 + chew * 0.12), 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#f6f0c8';
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(x - r * 0.9 + i * r * 0.12, cy + r * 0.04); ctx.lineTo(x - r * 0.86 + i * r * 0.12, cy + r * 0.13); ctx.lineTo(x - r * 0.82 + i * r * 0.12, cy + r * 0.04); ctx.fill(); }
+  // the big snapping claw
+  const snap = e.eating ? Math.abs(Math.sin(t * 12)) : 0.3 + Math.sin(t * 2 + e.seed) * 0.15;
+  const ax = x - r * 1.1, ay = cy - r * 0.05;
+  ctx.strokeStyle = ink; ctx.lineWidth = r * 0.2;
+  ctx.beginPath(); ctx.moveTo(x - r * 0.9, cy + r * 0.1); ctx.quadraticCurveTo(ax, ay + r * 0.2, ax - r * 0.25, ay - r * 0.2); ctx.stroke();
+  ctx.save();
+  ctx.translate(ax - r * 0.45, ay - r * 0.35);
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.42, r * 0.3, -0.4, 0, TAU);
+  ctx.fillStyle = shadeFill(ctx, 0, 0, r * 0.42, body); ctx.fill(); lineColor = ink; outline(ctx, s, 0.03); lineColor = null;
+  glossy(ctx, 0, 0, r * 0.38, r * 0.26, -0.4);
+  ctx.rotate(-0.4 - snap * 0.5);
+  ctx.beginPath(); ctx.moveTo(-r * 0.25, -r * 0.05); ctx.quadraticCurveTo(-r * 0.75, -r * 0.35, -r * 0.6, r * 0.05); ctx.quadraticCurveTo(-r * 0.45, -r * 0.05, -r * 0.25, r * 0.02); ctx.closePath();
+  ctx.fillStyle = tint(body, 0.1); ctx.fill(); lineColor = ink; outline(ctx, s, 0.025); lineColor = null;
+  ctx.restore();
+  if (e.carries) { ctx.save(); ctx.shadowColor = '#8bff5a'; ctx.shadowBlur = 14; drawWildseed(ctx, x + r * 0.6, cy - r * 1.15, r * 0.3, t); ctx.restore(); }
+  if (e.confused > 0) for (let i = 0; i < 3; i++) { const a = t * 5 + i * 2.1; star(ctx, x + Math.cos(a) * r * 0.7, cy - r * 1.3 + Math.sin(a) * r * 0.15, Math.max(4, r * 0.15), '#fff1a8'); }
 }
 
 // ---------- props + effects ----------
