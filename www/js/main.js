@@ -4,13 +4,14 @@ import {
   HATS, SKINS, BOOSTS, MODIFIERS, POTLUCK, dailyLevel, todayKey, LORE, ROLES, BOSS_TITLES,
 } from './data.js';
 import { Game } from './game.js';
-import { drawGuardian, drawRotling, drawPortrait, drawBackdrop, makeDecor, drawClouds } from './art.js';
+import { drawGuardian, drawRotling, drawPortrait, drawBackdrop, makeDecor, drawClouds, drawGroundDetails, drawCrystal } from './art.js';
 import { playCinema } from './cinema.js';
 import { playBonk } from './bonk.js';
 import { sfx, startMusic, stopMusic, setAudio, unlockAudio } from './audio.js';
 import { SPEAKERS, scene } from './story.js';
 import * as store from './save.js';
 import { initGamepad } from './gamepad.js';
+import { loadSprites } from './sprites.js';
 
 const desktop = window.bloomDesktop || null;
 let data = store.load();
@@ -277,6 +278,39 @@ function currencyBar() {
     el('span', { class: 'chip acorn', title: 'Acorns' }, `🌰 ${data.acorns}`),
     el('span', { class: 'chip petal', title: 'Petals' }, `🌸 ${data.petals}`),
     el('span', { class: 'chip star', title: 'Stars' }, `★ ${totalStars()}`));
+}
+
+// Illustrated landmarks for each world on the level map.
+function drawLandmarks(ctx, world, t) {
+  const id = world.id;
+  ctx.save();
+  if (id === 'dawn') {
+    // Grandma Ada's greenhouse in the corner
+    ctx.translate(1120, 470);
+    ctx.fillStyle = 'rgba(215,240,250,0.9)'; ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-90, 60); ctx.lineTo(-90, -10); ctx.lineTo(0, -60); ctx.lineTo(90, -10); ctx.lineTo(90, 60); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 2; for (let x = -60; x <= 60; x += 30) { ctx.beginPath(); ctx.moveTo(x, 60); ctx.lineTo(x, -25 + Math.abs(x) * 0.3); ctx.stroke(); }
+    ctx.fillStyle = `rgba(255,210,90,${0.8 + Math.sin(t * 4) * 0.15})`; ctx.fillRect(40, 10, 14, 18);
+  } else if (id === 'marsh') {
+    ctx.fillStyle = 'rgba(40,80,90,0.7)';
+    ctx.beginPath(); ctx.ellipse(1080, 480, 170, 50, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(200,240,255,0.25)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(1080, 480, 60 + i * 40 + Math.sin(t + i) * 4, 14 + i * 10, 0, 0, Math.PI * 2); ctx.stroke(); }
+    for (let i = 0; i < 6; i++) { const x = 330 + i * 150; ctx.fillStyle = `rgba(220,255,140,${0.4 + 0.6 * Math.abs(Math.sin(t * 2 + i))})`; ctx.beginPath(); ctx.arc(x + Math.sin(t + i) * 20, 260 + (i % 3) * 60, 4, 0, Math.PI * 2); ctx.fill(); }
+  } else if (id === 'frost') {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const [x, y, w] of [[200, 520, 90], [700, 540, 120], [1120, 500, 110]]) { ctx.beginPath(); ctx.ellipse(x, y, w, w * 0.25, 0, Math.PI, 0); ctx.fill(); }
+    for (let i = 0; i < 40; i++) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc((i * 137 + t * 20) % 1280, (i * 71 + t * 30) % 560, 2, 0, Math.PI * 2); ctx.fill(); }
+  } else if (id === 'caverns') {
+    for (const [x, y, s] of [[160, 540, 120], [640, 560, 90], [1110, 530, 140]]) drawCrystal(ctx, x, y, s, t);
+  } else if (id === 'rotheart') {
+    for (const [x, y, w] of [[260, 500, 110], [760, 520, 140], [1100, 470, 90]]) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, w);
+      g.addColorStop(0, 'rgba(120,30,110,0.6)'); g.addColorStop(1, 'rgba(120,30,110,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, w, w * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 
 // Animated illustrated scene behind the main menu.
@@ -615,6 +649,7 @@ const SCREENS = {
     );
     const ctx = bg.getContext('2d');
     const decor = makeDecor(world, { W: 1280, H: 560, BX: 0, BY: 200, BR: 1280, BB: 560 });
+    const groundDecor = makeDecor(world, { W: 1280, H: 560, BX: 20, BY: 215, BR: 1260, BB: 550 });
     const t0 = performance.now();
     const frame = () => {
       if (screen !== 'map' || !bg.isConnected) return;
@@ -625,9 +660,8 @@ const SCREENS = {
       g.addColorStop(0, world.ground[0]); g.addColorStop(1, world.ground[1]);
       ctx.fillStyle = g;
       ctx.fillRect(0, 196, 1280, 364);
-      ctx.save(); ctx.translate(0, 0);
-      for (const d of decor.decor) { d.y = Math.max(d.y, 210); }
-      ctx.restore();
+      drawGroundDetails(ctx, world, null, groundDecor, t);
+      drawLandmarks(ctx, world, t);
     };
     frame();
   },
@@ -655,8 +689,10 @@ const SCREENS = {
         const d = GUARDIANS[k];
         const on = chosen.includes(k);
         const ok = allowed(k);
+        const roleCol = (ROLES[d.kind] || { color: '#8a8a8a' }).color;
         grid.append(el('button', {
           class: `card ${on ? 'on' : ''} ${ok ? '' : 'banned'}`,
+          style: `--role:${roleCol}`,
           'aria-pressed': on ? 'true' : 'false',
           disabled: ok ? false : '',
           onclick: () => {
@@ -1084,4 +1120,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Ca
 // Test hook (used by automated smoke tests only)
 window.__bloomguard = { get game() { return game; }, show, get data() { return data; }, set mapWorld(v) { mapWorld = v; } };
 
-show('title');
+loadSprites().finally(() => show('title'));

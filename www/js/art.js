@@ -1,3 +1,4 @@
+import { sprite, drawSprite } from './sprites.js';
 import { SKINS } from './data.js';
 // Procedural vector art for Bloomguard. Every character, creature and backdrop is an original
 // design drawn in code, so the game ships with no third-party image assets.
@@ -347,6 +348,22 @@ export function drawGuardian(ctx, type, x, y, s, t, o = {}) {
 }
 
 function drawGuardianInner(ctx, type, x, y, s, t, o) {
+  const img = sprite('guardians', type);
+  if (img) {
+    const seed0 = o.seed || 0;
+    const pop = o.born !== undefined ? Math.min(1, o.born) : 1;
+    const breathe = Math.sin(t * 2.2 + seed0) * 0.025;
+    const squash = o.fire ? 1 - o.fire * 0.1 : 1;
+    shadow(ctx, x, y - s * 0.05, s * 0.32);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale((1 + breathe) / squash * (0.4 + 0.6 * pop), (1 - breathe) * squash * pop);
+    drawSprite(ctx, img, 0, 0, s * 0.95);
+    ctx.restore();
+    if (o.hat && HEAD[type]) { const [dx, dy, hw] = HEAD[type]; drawHat(ctx, o.hat, x + dx * s, y + dy * s, hw * s, t); }
+    if (o.level > 1) levelStars(ctx, x, y - s * 0.02, o.level);
+    return;
+  }
   const seed = o.seed || 0;
   const bob = Math.sin(t * 3 + seed) * s * 0.018;
   const sway = Math.sin(t * 2 + seed) * 0.05;
@@ -414,56 +431,104 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       break;
     }
     case 'thornling': {
-      leaf(ctx, x - s * 0.04, y - s * 0.1, s * 0.28, s * 0.08, Math.PI + 0.5 + sway, '#4f9e3d', s);
-      leaf(ctx, x + s * 0.04, y - s * 0.1, s * 0.28, s * 0.08, -0.5 - sway, '#4f9e3d', s);
-      const cy = y - s * 0.38 + bob;
-      ctx.fillStyle = '#f0ffe0';
-      for (let i = 0; i < 11; i++) {
-        const a = -Math.PI * 1.0 + (i / 10) * Math.PI * 1.1;
-        const bx = x + Math.cos(a) * s * 0.23, by = cy + Math.sin(a) * s * 0.26;
-        ctx.beginPath();
-        ctx.moveTo(bx - Math.sin(a) * 5, by + Math.cos(a) * 5);
-        ctx.lineTo(bx + Math.cos(a) * s * 0.09, by + Math.sin(a) * s * 0.09);
-        ctx.lineTo(bx + Math.sin(a) * 5, by - Math.cos(a) * 5);
-        ctx.fill();
-        ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
+      // a plump bud made of overlapping leaf-scales, each tipped with a pale thorn
+      const cy = y - s * 0.4 + bob;
+      const rx = s * 0.25 * sq, ry = s * 0.3 / sq;
+      leaf(ctx, x - s * 0.06, y - s * 0.12, s * 0.26, s * 0.08, Math.PI + 0.55 + sway, '#4f9e3d', s);
+      leaf(ctx, x + s * 0.06, y - s * 0.12, s * 0.26, s * 0.08, -0.55 - sway, '#4f9e3d', s);
+      ctx.beginPath(); ctx.ellipse(x, cy, rx, ry, 0, 0, TAU);
+      ctx.fillStyle = shadeFill(ctx, x, cy, ry, '#6fcf5a'); ctx.fill();
+      ctx.save(); ctx.clip();
+      // rows of scales, back to front, shaded so they read as layered
+      for (let row = 0; row < 4; row++) {
+        const ry0 = cy - ry * 0.85 + row * ry * 0.48;
+        const n = 4 + (row % 2);
+        for (let i = 0; i < n; i++) {
+          const sx = x - rx * 1.05 + (i + (row % 2 ? 0 : 0.5)) * (rx * 2.1 / n);
+          const g = ctx.createLinearGradient(0, ry0 - ry * 0.3, 0, ry0 + ry * 0.25);
+          g.addColorStop(0, tint('#7fd86a', 0.25)); g.addColorStop(1, tint('#4fa83e', -0.15));
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.ellipse(sx, ry0, rx * 0.34, ry * 0.3, 0, 0, Math.PI);
+          ctx.quadraticCurveTo(sx, ry0 - ry * 0.55, sx + rx * 0.34, ry0); ctx.fill();
+          ctx.strokeStyle = 'rgba(40,90,30,0.35)'; ctx.lineWidth = Math.max(1, s * 0.008); ctx.stroke();
+        }
       }
-      blob(ctx, x, cy, s * 0.24 * sq, s * 0.27 / sq, '#6fcf5a', s);
-      shine(ctx, x - s * 0.1, cy - s * 0.14, s * 0.05);
-      eyes(ctx, x + s * 0.04, cy - s * 0.04, s * 0.075, s * 0.055, 0.5, blink, mood);
-      ctx.beginPath();
-      ctx.ellipse(x + s * 0.15, cy + s * 0.09, s * 0.035 * (1 + (o.fire || 0)), s * 0.03 * (1 + (o.fire || 0)), 0, 0, TAU);
+      ctx.restore();
+      glossy(ctx, x, cy, rx, ry);
+      // thorn tips around the rim
+      for (let i = 0; i < 12; i++) {
+        const a = -Math.PI * 1.05 + (i / 11) * Math.PI * 1.1;
+        const bx = x + Math.cos(a) * rx * 0.98, by = cy + Math.sin(a) * ry * 0.98;
+        const len = s * (0.07 + (i % 2) * 0.025);
+        const g = ctx.createLinearGradient(bx, by, bx + Math.cos(a) * len, by + Math.sin(a) * len);
+        g.addColorStop(0, '#d8f0b0'); g.addColorStop(1, '#fffbe8');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(bx - Math.sin(a) * s * 0.022, by + Math.cos(a) * s * 0.022);
+        ctx.lineTo(bx + Math.cos(a) * len, by + Math.sin(a) * len);
+        ctx.lineTo(bx + Math.sin(a) * s * 0.022, by - Math.cos(a) * s * 0.022);
+        ctx.fill();
+      }
+      // face low on the bud, with a little round spout for spitting thorns
+      eyes(ctx, x - s * 0.01, cy + ry * 0.05, s * 0.08, s * 0.055, 0.5, blink, mood);
+      const spit = o.fire || 0;
+      ctx.beginPath(); ctx.ellipse(x + s * 0.14, cy + ry * 0.42, s * (0.04 + spit * 0.02), s * (0.035 + spit * 0.02), 0, 0, TAU);
       ctx.fillStyle = '#2b5a20'; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x + s * 0.14, cy + ry * 0.4, s * 0.025, s * 0.012, 0, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fill();
+      cheeks(ctx, x - s * 0.01, cy + ry * 0.3, s * 0.13, s * 0.022);
       break;
     }
     case 'barkwall': {
+      // a gnarled old stump on root feet, with layered bark plates, shelf fungi and a mossy crown
       const dmg = o.hpFrac !== undefined ? o.hpFrac : 1;
-      ctx.beginPath();
-      ctx.roundRect(x - s * 0.3, y - s * 0.7, s * 0.6, s * 0.66, s * 0.1);
-      const g = ctx.createLinearGradient(x - s * 0.3, 0, x + s * 0.3, 0);
-      g.addColorStop(0, '#6e4422'); g.addColorStop(0.4, '#9a6a3c'); g.addColorStop(1, '#5e3a1c');
-      ctx.fillStyle = g; ctx.fill(); outline(ctx, s);
-      ctx.beginPath();
-      ctx.ellipse(x, y - s * 0.7, s * 0.3, s * 0.08, 0, 0, TAU);
-      ctx.fillStyle = '#e0b882'; ctx.fill(); outline(ctx, s, 0.02);
-      ctx.strokeStyle = '#a77d4c'; ctx.lineWidth = 2;
-      for (const r of [0.2, 0.12, 0.05]) { ctx.beginPath(); ctx.ellipse(x, y - s * 0.7, s * r, s * r * 0.27, 0, 0, TAU); ctx.stroke(); }
-      ctx.strokeStyle = '#4b2c12'; ctx.lineWidth = 2;
-      for (const dx of [-0.2, -0.05, 0.15]) { ctx.beginPath(); ctx.moveTo(x + dx * s, y - s * 0.6); ctx.lineTo(x + dx * s + 3, y - s * 0.1); ctx.stroke(); }
-      // moss tuft + sprout on top
-      circle(ctx, x - s * 0.18, y - s * 0.68, s * 0.06, '#6fbf4a');
-      circle(ctx, x - s * 0.1, y - s * 0.7, s * 0.05, '#7fd05a');
-      leaf(ctx, x + s * 0.1, y - s * 0.74, s * 0.12, s * 0.04, -1.2, '#6fcf5a', s);
-      if (o.armor) {
-        ctx.strokeStyle = 'rgba(120,220,120,0.9)'; ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.roundRect(x - s * 0.33, y - s * 0.74, s * 0.66, s * 0.72, s * 0.12); ctx.stroke();
+      // root feet
+      for (const [dx, a] of [[-0.24, 2.6], [-0.1, 2.0], [0.12, 1.1], [0.26, 0.5]]) {
+        ctx.strokeStyle = '#5a361a'; ctx.lineWidth = s * 0.06; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x + dx * s * 0.6, y - s * 0.12); ctx.quadraticCurveTo(x + dx * s, y - s * 0.04, x + dx * s + Math.cos(a) * s * 0.08, y - s * 0.02); ctx.stroke();
       }
-      if (dmg < 0.66) { ctx.strokeStyle = '#2d1606'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + s * 0.1, y - s * 0.68); ctx.lineTo(x, y - s * 0.5); ctx.lineTo(x + s * 0.08, y - s * 0.38); ctx.stroke(); }
-      if (dmg < 0.33) { ctx.beginPath(); ctx.moveTo(x - s * 0.28, y - s * 0.3); ctx.lineTo(x - s * 0.12, y - s * 0.24); ctx.lineTo(x - s * 0.18, y - s * 0.1); ctx.stroke(); }
-      eyes(ctx, x, y - s * 0.45, s * 0.09, s * 0.06, 0.4, blink || dmg < 0.33, dmg < 0.5 ? 'angry' : 'happy');
-      ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(x, y - s * 0.28 + (dmg < 0.5 ? s * 0.06 : 0), s * 0.06, dmg < 0.5 ? Math.PI * 1.15 : 0.2, dmg < 0.5 ? Math.PI * 1.85 : Math.PI - 0.2);
+      ctx.moveTo(x - s * 0.3, y - s * 0.08);
+      ctx.bezierCurveTo(x - s * 0.36, y - s * 0.35, x - s * 0.28, y - s * 0.62, x - s * 0.27, y - s * 0.72);
+      ctx.lineTo(x + s * 0.28, y - s * 0.74);
+      ctx.bezierCurveTo(x + s * 0.3, y - s * 0.6, x + s * 0.37, y - s * 0.35, x + s * 0.31, y - s * 0.08);
+      ctx.quadraticCurveTo(x, y - s * 0.02, x - s * 0.3, y - s * 0.08);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x - s * 0.34, 0, x + s * 0.34, 0);
+      g.addColorStop(0, '#5a3418'); g.addColorStop(0.35, '#a8743e'); g.addColorStop(0.6, '#8a5a2e'); g.addColorStop(1, '#4a2a12');
+      ctx.fillStyle = g; ctx.fill();
+      ctx.save(); ctx.clip();
+      // bark plates
+      for (let i = 0; i < 6; i++) {
+        const px = x - s * 0.3 + i * s * 0.11;
+        ctx.strokeStyle = 'rgba(40,20,8,0.45)'; ctx.lineWidth = s * 0.012;
+        ctx.beginPath(); ctx.moveTo(px, y - s * 0.74); ctx.bezierCurveTo(px + s * 0.03, y - s * 0.5, px - s * 0.03, y - s * 0.3, px + s * 0.01, y - s * 0.05); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,220,170,0.15)'; ctx.lineWidth = s * 0.008;
+        ctx.beginPath(); ctx.moveTo(px + s * 0.02, y - s * 0.72); ctx.bezierCurveTo(px + s * 0.05, y - s * 0.5, px - s * 0.01, y - s * 0.3, px + s * 0.03, y - s * 0.06); ctx.stroke();
+      }
+      ctx.restore();
+      // cut top with growth rings
+      ctx.beginPath(); ctx.ellipse(x, y - s * 0.735, s * 0.28, s * 0.075, 0, 0, TAU);
+      const tg = ctx.createRadialGradient(x - s * 0.05, y - s * 0.75, 2, x, y - s * 0.735, s * 0.28);
+      tg.addColorStop(0, '#f2d0a0'); tg.addColorStop(1, '#c8965a');
+      ctx.fillStyle = tg; ctx.fill();
+      ctx.strokeStyle = 'rgba(120,70,30,0.5)'; ctx.lineWidth = 1.5;
+      for (const r of [0.2, 0.13, 0.06]) { ctx.beginPath(); ctx.ellipse(x + s * 0.01, y - s * 0.735, s * r, s * r * 0.26, 0, 0, TAU); ctx.stroke(); }
+      // mossy crown + a sprout
+      for (let i = 0; i < 6; i++) circle(ctx, x - s * 0.24 + i * s * 0.07, y - s * 0.71 + Math.sin(i * 1.7) * s * 0.01, s * 0.045, i % 2 ? '#7fd05a' : '#5fb84a');
+      leaf(ctx, x + s * 0.1, y - s * 0.76, s * 0.14, s * 0.045, -1.2, '#6fcf5a', s);
+      // shelf fungi on the side
+      for (const [fy, fw] of [[-0.42, 0.11], [-0.32, 0.08]]) {
+        ctx.beginPath(); ctx.ellipse(x + s * 0.3, y + fy * s, s * fw, s * 0.035, 0.15, Math.PI, 0); ctx.closePath();
+        ctx.fillStyle = shadeFill(ctx, x + s * 0.3, y + fy * s, s * fw, '#e8c27a'); ctx.fill();
+      }
+      if (o.armor) { ctx.strokeStyle = 'rgba(120,230,120,0.85)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(x, y - s * 0.4, s * 0.38, s * 0.42, 0, 0, TAU); ctx.stroke(); }
+      if (dmg < 0.66) { ctx.strokeStyle = '#2d1606'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + s * 0.12, y - s * 0.72); ctx.lineTo(x + s * 0.02, y - s * 0.55); ctx.lineTo(x + s * 0.1, y - s * 0.42); ctx.stroke(); }
+      if (dmg < 0.33) { ctx.beginPath(); ctx.moveTo(x - s * 0.28, y - s * 0.3); ctx.lineTo(x - s * 0.12, y - s * 0.24); ctx.lineTo(x - s * 0.18, y - s * 0.1); ctx.stroke(); }
+      // carved, sleepy face
+      eyes(ctx, x - s * 0.01, y - s * 0.47, s * 0.095, s * 0.06, 0.4, blink || dmg < 0.33, dmg < 0.5 ? 'angry' : 'happy');
+      ctx.strokeStyle = '#3a1e0a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(x, y - s * 0.3 + (dmg < 0.5 ? s * 0.06 : 0), s * 0.065, dmg < 0.5 ? Math.PI * 1.15 : 0.2, dmg < 0.5 ? Math.PI * 1.85 : Math.PI - 0.2);
       ctx.stroke();
       break;
     }
@@ -489,24 +554,36 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       break;
     }
     case 'frostbell': {
-      stem(ctx, x, y - s * 0.06, x - s * 0.15, y - s * 0.5, x + s * 0.02, y - s * 0.78 + bob, s * 0.04, '#3f8f6a');
-      leaf(ctx, x - s * 0.04, y - s * 0.2, s * 0.22, s * 0.07, Math.PI + 0.3 + sway, '#57b083', s);
-      leaf(ctx, x + s * 0.02, y - s * 0.32, s * 0.18, s * 0.06, -0.4 - sway, '#57b083', s);
+      // a drooping frost-blue bell with curled petal tips, glowing inside, with a snowflake clapper
+      stem(ctx, x, y - s * 0.06, x - s * 0.16, y - s * 0.5, x + s * 0.02, y - s * 0.8 + bob, s * 0.045, '#3f8f6a');
+      leaf(ctx, x - s * 0.04, y - s * 0.22, s * 0.24, s * 0.075, Math.PI + 0.3 + sway, '#5fb890', s);
+      leaf(ctx, x + s * 0.02, y - s * 0.34, s * 0.2, s * 0.065, -0.4 - sway, '#5fb890', s);
       const bx = x + s * 0.06, by = y - s * 0.62 + bob;
+      // inner glow
+      const ig = ctx.createRadialGradient(bx, by + s * 0.16, 2, bx, by + s * 0.16, s * 0.26);
+      ig.addColorStop(0, 'rgba(220,250,255,0.9)'); ig.addColorStop(1, 'rgba(160,220,255,0)');
+      ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(bx, by + s * 0.16, s * 0.26, 0, TAU); ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(bx - s * 0.08, by - s * 0.14);
-      ctx.quadraticCurveTo(bx - s * 0.12, by + s * 0.05, bx - s * 0.27 * sq, by + s * 0.2);
-      ctx.quadraticCurveTo(bx, by + s * 0.26, bx + s * 0.27 * sq, by + s * 0.2);
-      ctx.quadraticCurveTo(bx + s * 0.12, by + s * 0.05, bx + s * 0.08, by - s * 0.14);
+      ctx.moveTo(bx - s * 0.07, by - s * 0.16);
+      ctx.bezierCurveTo(bx - s * 0.12, by - s * 0.02, bx - s * 0.17, by + s * 0.12, bx - s * 0.29 * sq, by + s * 0.2);
+      ctx.quadraticCurveTo(bx - s * 0.22, by + s * 0.17, bx - s * 0.17, by + s * 0.21);
+      ctx.quadraticCurveTo(bx - s * 0.08, by + s * 0.17, bx, by + s * 0.22);
+      ctx.quadraticCurveTo(bx + s * 0.08, by + s * 0.17, bx + s * 0.17, by + s * 0.21);
+      ctx.quadraticCurveTo(bx + s * 0.22, by + s * 0.17, bx + s * 0.29 * sq, by + s * 0.2);
+      ctx.bezierCurveTo(bx + s * 0.17, by + s * 0.12, bx + s * 0.12, by - s * 0.02, bx + s * 0.07, by - s * 0.16);
       ctx.closePath();
-      ctx.fillStyle = shadeFill(ctx, bx, by, s * 0.25, '#9fe6ff');
-      ctx.fill(); outline(ctx, s);
-      circle(ctx, bx, by + s * 0.24, s * 0.05, '#e8fbff');
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke();
-      // icicles
-      ctx.fillStyle = '#e8fbff';
-      for (const dx of [-0.18, 0.18]) { ctx.beginPath(); ctx.moveTo(bx + dx * s - 3, by + s * 0.19); ctx.lineTo(bx + dx * s + 3, by + s * 0.19); ctx.lineTo(bx + dx * s, by + s * 0.28); ctx.fill(); }
-      eyes(ctx, bx, by + s * 0.03, s * 0.06, s * 0.04, 0.5, blink, mood);
+      const bg = ctx.createLinearGradient(bx - s * 0.25, by - s * 0.15, bx + s * 0.25, by + s * 0.22);
+      bg.addColorStop(0, '#eafcff'); bg.addColorStop(0.45, '#9fe2ff'); bg.addColorStop(1, '#4fa8e0');
+      ctx.fillStyle = bg; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = Math.max(1, s * 0.01);
+      for (const dx of [-0.1, 0, 0.1]) { ctx.beginPath(); ctx.moveTo(bx + dx * s * 0.4, by - s * 0.12); ctx.quadraticCurveTo(bx + dx * s, by + s * 0.05, bx + dx * s * 1.6, by + s * 0.19); ctx.stroke(); }
+      glossy(ctx, bx, by + s * 0.03, s * 0.16, s * 0.16);
+      // snowflake clapper
+      const cx = bx, cyy = by + s * 0.26;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.5, s * 0.012);
+      for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI + t; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * s * 0.04, cyy + Math.sin(a) * s * 0.04); ctx.lineTo(cx - Math.cos(a) * s * 0.04, cyy - Math.sin(a) * s * 0.04); ctx.stroke(); }
+      eyes(ctx, bx, by + s * 0.04, s * 0.058, s * 0.04, 0.5, blink, mood);
+      smile(ctx, bx, by + s * 0.12, s * 0.025);
       break;
     }
     case 'vinewhip': {
@@ -607,17 +684,41 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       break;
     }
     case 'hivebloom': {
-      stem(ctx, x, y - s * 0.06, x - s * 0.06, y - s * 0.25, x, y - s * 0.32, s * 0.05);
+      // a honey-gold hive bud on a leafy collar: hexagon cells, a round door and dripping honey
+      stem(ctx, x, y - s * 0.06, x - s * 0.06, y - s * 0.22, x, y - s * 0.3, s * 0.05);
+      for (const a of [Math.PI + 0.35, -0.35, Math.PI + 0.9, -0.9]) leaf(ctx, x, y - s * 0.3, s * 0.18, s * 0.06, a, '#5ab04a', s);
+      const hx = x, hy = y - s * 0.5 + bob;
       ctx.beginPath();
-      ctx.ellipse(x, y - s * 0.48 + bob, s * 0.2, s * 0.24, 0, 0, TAU);
-      ctx.fillStyle = shadeFill(ctx, x, y - s * 0.48, s * 0.22, '#ffb84a'); ctx.fill(); outline(ctx, s);
-      ctx.strokeStyle = '#b06a14'; ctx.lineWidth = 2.5;
-      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.ellipse(x, y - s * 0.48 + bob + i * s * 0.08, s * 0.2 * Math.cos(i * 0.35), s * 0.02, 0, 0, Math.PI); ctx.stroke(); }
-      circle(ctx, x, y - s * 0.42 + bob, s * 0.05, '#4a2a0a');
-      eyes(ctx, x, y - s * 0.55 + bob, s * 0.065, s * 0.04, 0.4, blink, mood);
+      ctx.moveTo(hx, hy - s * 0.27);
+      ctx.bezierCurveTo(hx + s * 0.2, hy - s * 0.27, hx + s * 0.25, hy + s * 0.05, hx + s * 0.17, hy + s * 0.2);
+      ctx.quadraticCurveTo(hx, hy + s * 0.28, hx - s * 0.17, hy + s * 0.2);
+      ctx.bezierCurveTo(hx - s * 0.25, hy + s * 0.05, hx - s * 0.2, hy - s * 0.27, hx, hy - s * 0.27);
+      ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, hx, hy, s * 0.24, '#ffb84a'); ctx.fill();
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle = 'rgba(160,90,20,0.45)'; ctx.lineWidth = Math.max(1, s * 0.01);
+      const hr = s * 0.045;
+      for (let row = -4; row <= 4; row++) for (let col = -4; col <= 4; col++) {
+        const cx = hx + col * hr * 1.75 + (row % 2 ? hr * 0.87 : 0), cy = hy + row * hr * 1.5;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + (k * Math.PI) / 3; ctx.lineTo(cx + Math.cos(a) * hr, cy + Math.sin(a) * hr); }
+        ctx.closePath(); ctx.stroke();
+      }
+      ctx.restore();
+      glossy(ctx, hx, hy, s * 0.2, s * 0.24);
+      // honey drips
+      for (const [dx, k] of [[-0.12, 0.3], [0.09, 0.7]]) {
+        const dr = ((t * 0.4 + k) % 1);
+        ctx.fillStyle = 'rgba(255,190,40,0.95)';
+        ctx.beginPath(); ctx.ellipse(hx + dx * s, hy + s * 0.2 + dr * s * 0.06, s * 0.022, s * 0.03 + dr * s * 0.02, 0, 0, TAU); ctx.fill();
+      }
+      // round door + face
+      ctx.beginPath(); ctx.ellipse(hx, hy + s * 0.1, s * 0.055, s * 0.045, 0, 0, TAU); ctx.fillStyle = '#4a2a0a'; ctx.fill();
+      eyes(ctx, hx, hy - s * 0.07, s * 0.07, s * 0.045, 0.4, blink, mood);
+      cheeks(ctx, hx, hy + s * 0.02, s * 0.12, s * 0.022);
       for (let i = 0; i < 2; i++) {
         const a = t * 4 + i * Math.PI;
-        drawBee(ctx, x + Math.cos(a) * s * 0.3, y - s * 0.6 + Math.sin(a * 1.4) * s * 0.1, s * 0.45, t);
+        drawBee(ctx, x + Math.cos(a) * s * 0.32, y - s * 0.62 + Math.sin(a * 1.4) * s * 0.1, s * 0.45, t);
       }
       break;
     }
@@ -781,6 +882,20 @@ export function drawRotling(ctx, e, s, t) {
 }
 
 function drawRotlingInner(ctx, e, s, t) {
+  const img = sprite('rotlings', e.k);
+  if (img && !e.burrowed) {
+    const d = e.def;
+    const scale = d.boss ? 1.55 : d.big ? 1.25 : d.small ? 0.62 : 1;
+    const walk = e.eating ? Math.sin(t * 14) * 0.05 : Math.sin(t * 8 + e.seed) * 0.04;
+    shadow(ctx, e.x, e.y - s * 0.04, s * 0.3 * scale);
+    ctx.save();
+    if (e.dying !== undefined) ctx.globalAlpha = Math.max(0, e.dying);
+    ctx.translate(e.x, e.y + (d.flying ? -s * 0.38 : 0));
+    ctx.rotate(walk);
+    drawSprite(ctx, img, 0, 0, s * 0.85 * scale);
+    ctx.restore();
+    return;
+  }
   // Original "Rotling" design: an upright, lumpy rot-gourd creature with one huge eye, crooked teeth,
   // stubby legs, noodle arms and moss + tiny toadstools sprouting from its head.
   const d = e.def;
