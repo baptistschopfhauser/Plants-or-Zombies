@@ -875,7 +875,7 @@ export class Game {
       if (p.x > W + 20) { p.done = true; continue; }
       for (const e of this.enemies) {
         if (e.dead || e.row !== p.row || e.burrowed || e.diving || p.hit.has(e)) continue;
-        const reach = 26 * (e.def.boss ? 1.9 : e.def.big ? 1.35 : e.def.small ? 0.7 : 1) + (e.shield > 0 ? 30 : 0);
+        const reach = 32 * (e.def.boss ? 1.6 : e.def.big ? 1.25 : e.def.small ? 0.7 : 1) + (e.shield > 0 ? 34 : 0);
         if (p.x >= e.x - reach && p.x <= e.x + reach + 20) {
           this.damage(e, p.dmg, p.kind === 'lance' ? 'lance' : 'shot');
           if (p.slow && !e.def.frostproof) e.slow = Math.max(e.slow, p.slowTime);
@@ -1192,8 +1192,10 @@ export class Game {
         drawRotling(ctx, e, TW, t);
         if (!e.burrowed && (e.hp < e.maxHp || e.def.boss)) {
           const w = e.def.boss ? 150 : 50;
-          this._bar(ctx, e.x - w / 2, e.y - (e.def.boss ? 135 : e.def.big ? 95 : 72) - (e.def.flying ? 40 : 0), w, e.hp / e.maxHp, '#e0526a');
-          if (e.def.boss) this._text(ctx, e.def.name, e.x, e.y - 142, 16, '#ffd0e8', 'center');
+          const sc = e.def.boss ? 1.55 : e.def.big ? 1.25 : e.def.small ? 0.62 : 1;
+          const top = e.y - TW * 0.33 * sc * (e.def.crab ? 1.6 : 2.55) - (e.def.flying ? 44 : 0) - 10;
+          this._bar(ctx, e.x - w / 2, top, w, e.hp / e.maxHp, '#e0526a');
+          if (e.def.boss) this._text(ctx, e.def.name, e.x, top - 6, 16, '#ffd0e8', 'center');
         }
       }
     }

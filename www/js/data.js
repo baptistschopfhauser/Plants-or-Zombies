@@ -133,7 +133,7 @@ export const ENEMY_INFO = {
 
 // Worlds. `mech` drives the special rule of each world (see game.js).
 export const WORLDS = [
-  { id: 'dawn', name: 'Dawn Greenhouse', mech: 'day', sky: ['#8fd0ff', '#e9f7ff'], ground: ['#7cc65b', '#6db54f'], accent: '#ffd23a',
+  { id: 'dawn', name: 'Dawn Greenhouse', mech: 'day', sky: ['#8fd0ff', '#e9f7ff'], ground: ['#8ad35e', '#74c04c'], accent: '#ffd23a',
     blurb: 'Grandma Ada\'s old greenhouse, where it all begins.', rule: 'Glow falls from the sky.' },
   { id: 'marsh', name: 'Moonlit Marsh', mech: 'night', sky: ['#141a40', '#36407a'], ground: ['#3f6f5a', '#386450'], accent: '#9be7ff',
     blurb: 'A misty bog where fireflies dance over the water.', rule: 'No sky Glow at night. Catch fireflies for Glow!' },
@@ -314,7 +314,7 @@ export function dailyLevel(key = todayKey(), unlockedLevel = 36) {
 
 // ---------- Mini-games ----------
 export const POTLUCK = [
-  { name: 'Pot Luck I', world: 0, pots: 18, rotChance: 0.42, pool: ['grub', 'skitter', 'shellback'], guardians: ['thornling', 'frostbell', 'barkwall', 'vinewhip', 'puffball'], reward: 60 },
+  { name: 'Pot Luck I', world: 0, pots: 18, rotChance: 0.36, pool: ['grub', 'skitter', 'shellback'], guardians: ['thornling', 'frostbell', 'barkwall', 'vinewhip', 'puffball'], reward: 60 },
   { name: 'Pot Luck II', world: 2, pots: 22, rotChance: 0.48, pool: ['grub', 'skitter', 'shieldbug', 'emberbeast', 'spore'], guardians: ['thornling', 'twinbud', 'emberroot', 'barkwall', 'rootsnare', 'hivebloom'], reward: 90 },
   { name: 'Pot Luck III', world: 4, pots: 25, rotChance: 0.45, pool: ['grub', 'shieldbug', 'crystalback', 'rotpriest', 'brute', 'burrower'], guardians: ['lanceleaf', 'emberroot', 'hivebloom', 'boulderbud', 'stormseed', 'mossmender', 'twinbud'], reward: 130 },
 ];

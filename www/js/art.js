@@ -119,23 +119,28 @@ export function tint(h, amt) {
 }
 // toon shading: bright key light from the top-left, a warm core and a deep shadow edge
 function shadeFill(ctx, x, y, r, color) {
-  const g = ctx.createRadialGradient(x - r * 0.42, y - r * 0.55, r * 0.05, x - r * 0.1, y - r * 0.1, r * 1.25);
-  g.addColorStop(0, tint(color, 0.55));
-  g.addColorStop(0.28, tint(color, 0.18));
-  g.addColorStop(0.62, color);
-  g.addColorStop(1, tint(color, -0.42));
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.02, x - r * 0.05, y - r * 0.05, r * 1.15);
+  g.addColorStop(0, tint(color, 0.62));
+  g.addColorStop(0.22, tint(color, 0.3));
+  g.addColorStop(0.55, tint(color, 0.06));
+  g.addColorStop(0.85, tint(color, -0.18));
+  g.addColorStop(1, tint(color, -0.34));
   return g;
 }
 let lineColor = null;
 // coloured outlines read softer and richer than flat black ones
+// no heavy outlines: just a thin, soft edge in a darker shade of the shape's own colour
 function outline(ctx, s, w = 0.032) {
+  ctx.save();
+  ctx.globalAlpha *= lineColor ? 0.45 : 0.28;
   ctx.strokeStyle = lineColor || INK;
-  ctx.lineWidth = Math.max(1.8, s * w);
+  ctx.lineWidth = Math.max(1, s * w * 0.32);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.stroke();
+  ctx.restore();
 }
-function inkFor(color) { return tint(color, -0.68); }
+function inkFor(color) { return tint(color, -0.5); }
 function blob(ctx, x, y, rx, ry, color, s, rot = 0) {
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, rot, 0, TAU);
@@ -151,11 +156,16 @@ function glossy(ctx, x, y, rx, ry, rot = 0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rot);
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.beginPath(); ctx.ellipse(-rx * 0.38, -ry * 0.5, rx * 0.26, ry * 0.15, -0.5, 0, TAU); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.beginPath(); ctx.arc(-rx * 0.55, -ry * 0.3, Math.max(1.2, Math.min(rx, ry) * 0.07), 0, TAU); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  const hg = ctx.createRadialGradient(-rx * 0.35, -ry * 0.5, 0, -rx * 0.35, -ry * 0.5, rx * 0.45);
+  hg.addColorStop(0, 'rgba(255,255,255,0.55)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.ellipse(-rx * 0.35, -ry * 0.5, rx * 0.45, ry * 0.3, -0.4, 0, TAU); ctx.fill();
+  // soft ambient shadow at the base
+  const ag = ctx.createRadialGradient(0, ry * 0.85, 0, 0, ry * 0.85, rx * 0.9);
+  ag.addColorStop(0, 'rgba(0,0,0,0.14)'); ag.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = ag;
+  ctx.beginPath(); ctx.ellipse(0, ry * 0.8, rx * 0.9, ry * 0.3, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineWidth = Math.max(1.5, Math.min(rx, ry) * 0.09);
   ctx.beginPath(); ctx.ellipse(0, 0, rx * 0.84, ry * 0.84, 0, Math.PI * 0.15, Math.PI * 0.55); ctx.stroke();
   ctx.restore();
@@ -192,7 +202,7 @@ function eyes(ctx, x, y, gap, r, look = 0.4, blink = false, mood = 'happy') {
     const g = ctx.createRadialGradient(ex - r * 0.3, y - r * 0.4, r * 0.1, ex, y, r * 1.1);
     g.addColorStop(0, '#ffffff'); g.addColorStop(0.75, '#f4f2ec'); g.addColorStop(1, '#cfcbc0');
     ctx.fillStyle = g; ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.2, r * 0.2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(40,25,20,0.35)'; ctx.lineWidth = Math.max(1, r * 0.08); ctx.stroke();
     const px = ex + r * look * 0.8, py = y + r * 0.12;
     ctx.beginPath(); ctx.ellipse(px, py, r * 0.56, r * 0.66, 0, 0, TAU);
     const pg = ctx.createRadialGradient(px, py - r * 0.2, r * 0.05, px, py, r * 0.66);
@@ -289,8 +299,8 @@ function leaf(ctx, x, y, len, w, ang, color, s) {
 }
 function stem(ctx, x1, y1, cx, cy, x2, y2, w, color = '#3f8f3a') {
   ctx.lineCap = 'round';
-  ctx.strokeStyle = inkFor(color);
-  ctx.lineWidth = w + 3.5;
+  ctx.strokeStyle = tint(color, -0.3);
+  ctx.lineWidth = w + 1.5;
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(cx, cy, x2, y2); ctx.stroke();
   ctx.strokeStyle = color;
   ctx.lineWidth = w;
@@ -350,7 +360,7 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
   const elastic = pop < 1 ? 1 - Math.cos(pop * Math.PI * 2.5) * (1 - pop) * 0.6 : 1;
   const breathe = Math.sin(t * 2.2 + seed) * 0.022;
   ctx.translate(x, y);
-  const big = 1.16;
+  const big = 1.3;
   ctx.scale(big * (1 + breathe) * elastic * (pop < 1 ? 0.4 + pop * 0.6 : 1), big * (1 - breathe) * elastic);
   ctx.translate(-x, -y);
   if (!['bramblemat', 'barkwall', 'boulderbud', 'puffball'].includes(type)) pot(ctx, x, y, s);
@@ -775,8 +785,8 @@ function drawRotlingInner(ctx, e, s, t) {
   // stubby legs, noodle arms and moss + tiny toadstools sprouting from its head.
   const d = e.def;
   const x = e.x, y = e.y;
-  const scale = d.boss ? 1.75 : d.big ? 1.32 : d.small ? 0.62 : 1;
-  const r = s * 0.25 * scale;
+  const scale = d.boss ? 1.55 : d.big ? 1.25 : d.small ? 0.62 : 1;
+  const r = s * 0.33 * scale;
   const walk = e.eating ? 0 : t * (d.speed > 30 ? 13 : 8) + e.seed;
   const chew = e.eating ? Math.abs(Math.sin(t * 14 + e.seed)) : 0.15;
   ctx.save();
@@ -954,7 +964,7 @@ function drawRotlingInner(ctx, e, s, t) {
   const eg = ctx.createRadialGradient(ex - er * 0.3, ey - er * 0.3, 1, ex, ey, er * 1.1);
   eg.addColorStop(0, '#fffbe6'); eg.addColorStop(0.8, '#f0e6b8'); eg.addColorStop(1, '#c8b88a');
   ctx.fillStyle = eg; ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.8, r * 0.06); ctx.stroke();
+  ctx.strokeStyle = 'rgba(40,20,20,0.35)'; ctx.lineWidth = Math.max(1, r * 0.03); ctx.stroke();
   // blood-shot veins
   ctx.strokeStyle = 'rgba(200,60,70,0.55)'; ctx.lineWidth = Math.max(1, r * 0.02);
   for (let i = 0; i < 3; i++) { const a = 0.4 + i * 0.5; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a) * er, ey + Math.sin(a) * er); ctx.lineTo(ex + Math.cos(a) * er * 0.55, ey + Math.sin(a) * er * 0.55); ctx.stroke(); }
@@ -967,13 +977,12 @@ function drawRotlingInner(ctx, e, s, t) {
   // brow + droopy lid
   ctx.fillStyle = tint(body, -0.3);
   ctx.beginPath(); ctx.moveTo(ex - er * 1.2, ey - er * 0.55); ctx.quadraticCurveTo(ex, ey - er * 1.25, ex + er * 1.15, ey - er * 0.85); ctx.lineTo(ex + er * 1.0, ey - er * 0.45); ctx.quadraticCurveTo(ex, ey - er * 0.5, ex - er * 1.2, ey - er * 0.2); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = Math.max(2, r * 0.07);
-  ctx.beginPath(); ctx.moveTo(ex - er * 1.25, ey - er * 0.6); ctx.quadraticCurveTo(ex, ey - er * 1.3, ex + er * 1.2, ey - er * 0.95); ctx.stroke();
+
   // mouth
   const mx0 = cx - r * 0.78, my0 = bodyT + r * 1.42;
   const mw = r * 0.62, mh = r * (0.12 + chew * 0.32);
   ctx.beginPath(); ctx.moveTo(mx0, my0); ctx.quadraticCurveTo(mx0 + mw * 0.5, my0 + mh * 2.2, mx0 + mw, my0 - r * 0.04); ctx.quadraticCurveTo(mx0 + mw * 0.5, my0 + mh * 0.3, mx0, my0); ctx.closePath();
-  ctx.fillStyle = '#2a0f1e'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.stroke();
+  ctx.fillStyle = '#3a1222'; ctx.fill();
   ctx.fillStyle = '#f6f0c8';
   for (let i = 0; i < 4; i++) {
     const tx = mx0 + mw * (0.15 + i * 0.22), ty = my0 + mh * 0.35 - Math.abs(i - 1.5) * r * 0.02;
@@ -1471,15 +1480,15 @@ export function makeBoardTexture(world, cols, rows, tw, th, activeRows) {
     g.addColorStop(0, tint(base, 0.08)); g.addColorStop(1, tint(base, -0.1));
     ctx.fillStyle = g;
     ctx.fillRect(x, y, tw, th);
-    // painterly blotches
-    for (let i = 0; i < 6; i++) {
-      ctx.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    // painterly blotches (subtle)
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.03)';
       ctx.beginPath(); ctx.ellipse(x + rnd() * tw, y + rnd() * th, 8 + rnd() * 18, 5 + rnd() * 10, rnd() * 3, 0, TAU); ctx.fill();
     }
     // grass blades / texture strokes
-    const blade = active ? tint(base, -0.28) : 'rgba(60,40,20,0.4)';
-    ctx.strokeStyle = blade; ctx.lineWidth = 1.4;
-    for (let i = 0; i < (active ? 26 : 10); i++) {
+    const blade = active ? tint(base, -0.16) : 'rgba(60,40,20,0.3)';
+    ctx.strokeStyle = blade; ctx.lineWidth = 1.2;
+    for (let i = 0; i < (active ? 9 : 6); i++) {
       const bx = x + rnd() * tw, by = y + 8 + rnd() * (th - 8), h = 4 + rnd() * 7;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + 1, by - h * 0.6, bx + (rnd() - 0.5) * 5, by - h); ctx.stroke();
     }
@@ -1488,16 +1497,14 @@ export function makeBoardTexture(world, cols, rows, tw, th, activeRows) {
       for (let i = 0; i < 8; i++) { const bx = x + rnd() * tw, by = y + rnd() * th; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + 1, by - 5); ctx.stroke(); }
     }
     // soft tile edges
-    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 2;
-    ctx.strokeRect(x + 1, y + 1, tw - 2, th - 2);
+
   }
   // mowed stripes + row hedge shadows
   for (let r = 0; r < rows; r++) {
     if (activeRows.includes(r)) {
       ctx.fillStyle = r % 2 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)';
       ctx.fillRect(0, r * th, cols * tw, th);
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 3;
-      for (let x = 10; x < cols * tw; x += 26) { ctx.beginPath(); ctx.moveTo(x, r * th + 6); ctx.lineTo(x + 10, r * th + th - 8); ctx.stroke(); }
+
     }
     ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(0, r * th + th - 5, cols * tw, 5);
   }
