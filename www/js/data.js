@@ -242,7 +242,8 @@ export const BOSS_TITLES = {
   monarch: 'Thief of the Hearthseed',
 };
 
-// ---------- Store: Acorns buy cosmetics and permanent boosts ----------
+// ---------- Store: Acorns buy permanent boosts (hats/skins are switched off for now) ----------
+export const COSMETICS_ENABLED = false;
 export const HATS = {
   straw:      { name: 'Sun Hat', price: 80 },
   beanie:     { name: 'Cozy Beanie', price: 100 },

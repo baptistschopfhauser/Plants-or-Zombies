@@ -1,7 +1,7 @@
 // Bloomguard — menus, story, progression and platform integration.
 import {
   GUARDIANS, ROTLINGS, ENEMY_INFO, WORLDS, LEVELS, LEVELS_PER_WORLD, ACHIEVEMENTS, MAX_RANK, RANK_COST, loadoutSlots,
-  HATS, SKINS, BOOSTS, MODIFIERS, POTLUCK, dailyLevel, todayKey, LORE, ROLES, BOSS_TITLES,
+  HATS, SKINS, BOOSTS, MODIFIERS, POTLUCK, dailyLevel, todayKey, LORE, ROLES, BOSS_TITLES, COSMETICS_ENABLED,
 } from './data.js';
 import { Game } from './game.js';
 import { drawGuardian, drawRotling, drawPortrait, drawBackdrop, makeDecor, drawClouds, drawGroundDetails, drawCrystal } from './art.js';
@@ -16,6 +16,17 @@ import { loadSprites, setOverride, setBypass, entryFor, frameFor, drawEntry } fr
 const desktop = window.bloomDesktop || null;
 let data = store.load();
 setAudio({ sfx: data.settings.sfx, music: data.settings.music });
+// Cosmetics are switched off for now: refund anything bought and clear what was worn.
+const cos = (g) => (COSMETICS_ENABLED ? data.equipped[g] || null : null);
+let cosmeticRefund = 0;
+if (!COSMETICS_ENABLED && (data.owned.hats.length || data.owned.skins.length)) {
+  for (const h of data.owned.hats) cosmeticRefund += (HATS[h] || { price: 0 }).price;
+  for (const k of data.owned.skins) cosmeticRefund += (SKINS[k] || { price: 0 }).price;
+  data.acorns += cosmeticRefund;
+  data.owned = { hats: [], skins: [] };
+  data.equipped = {};
+  store.save(data);
+}
 
 const $ = (s) => document.querySelector(s);
 const ui = $('#ui');
@@ -355,7 +366,7 @@ function menuScene(cv) {
     ctx.beginPath(); ctx.moveTo(320, 520); ctx.quadraticCurveTo(640, 560, 760, 720); ctx.lineTo(560, 720); ctx.quadraticCurveTo(520, 580, 320, 540); ctx.fill();
     // guardians lined along the front
     guards.forEach((g, i) => {
-      const eq = data.equipped[g] || {};
+      const eq = cos(g) || {};
       drawGuardian(ctx, g, 120 + i * 120 + mx * 44, 690 + my * 8, 120, t + i, { seed: i * 2, hat: eq.hat, skin: eq.skin });
     });
     drawPortrait(ctx, 'wren', 470 + mx * 44, 600, 170, t);
@@ -676,7 +687,7 @@ const SCREENS = {
 
   store() {
     stopGame();
-    let tab = 'hats';
+    let tab = COSMETICS_ENABLED ? 'hats' : 'boosts';
     const owned = data.guardians.filter((g) => GUARDIANS[g]);
     let sel = owned.includes('thornling') ? 'thornling' : owned[0];
     const body = el('div', { class: 'store' });
@@ -693,14 +704,14 @@ const SCREENS = {
       g.addColorStop(0, '#fff6d8'); g.addColorStop(1, '#e8d6ae');
       ctx.fillStyle = g; ctx.fillRect(0, 0, 360, 360);
       ctx.fillStyle = '#7cc65b'; ctx.beginPath(); ctx.ellipse(180, 320, 150, 34, 0, 0, Math.PI * 2); ctx.fill();
-      const eq = data.equipped[sel] || {};
+      const eq = cos(sel) || {};
       drawGuardian(ctx, sel, 180, 320, 250, (performance.now() - t0) / 1000, { hat: eq.hat, skin: eq.skin, seed: 1 });
     };
     function render() {
       body.innerHTML = '';
       const nc = currencyBar(); chips.replaceWith(nc); chips = nc;
-      const eq = data.equipped[sel] || (data.equipped[sel] = {});
-      const tabs = el('div', { class: 'tabs' }, ['hats', 'skins', 'boosts'].map((k) => el('button', { class: tab === k ? 'on' : '', onclick: () => { tab = k; sfx('click'); render(); } }, { hats: '🎩 Hats', skins: '🎨 Skins', boosts: '⚡ Boosts' }[k])));
+      const eq = COSMETICS_ENABLED ? data.equipped[sel] || (data.equipped[sel] = {}) : {};
+      const tabs = el('div', { class: 'tabs' }, (COSMETICS_ENABLED ? ['hats', 'skins', 'boosts'] : ['boosts']).map((k) => el('button', { class: tab === k ? 'on' : '', onclick: () => { tab = k; sfx('click'); render(); } }, { hats: '🎩 Hats', skins: '🎨 Skins', boosts: '⚡ Boosts' }[k])));
       const items = el('div', { class: 'items' });
       if (tab === 'boosts') {
         for (const [k, b] of Object.entries(BOOSTS)) {
@@ -731,10 +742,11 @@ const SCREENS = {
               } }, `🌰 ${it.price}`)));
         }
       }
-      const picker = el('div', { class: 'picker' }, owned.map((g) => el('button', { class: g === sel ? 'on' : '', title: GUARDIANS[g].name, onclick: () => { sel = g; sfx('click'); render(); } }, portrait(g, 46, false, data.equipped[g]))));
-      body.append(el('div', { class: 'store-left' }, preview, el('h3', {}, GUARDIANS[sel].name), picker), el('div', { class: 'store-right' }, tabs, items));
+      const picker = el('div', { class: 'picker' }, owned.map((g) => el('button', { class: g === sel ? 'on' : '', title: GUARDIANS[g].name, onclick: () => { sel = g; sfx('click'); render(); } }, portrait(g, 46, false, cos(g)))));
+      if (COSMETICS_ENABLED) body.append(el('div', { class: 'store-left' }, preview, el('h3', {}, GUARDIANS[sel].name), picker), el('div', { class: 'store-right' }, tabs, items));
+      else body.append(el('div', { class: 'store-right' }, items));
     }
-    ui.append(bar, el('p', { class: 'sub' }, 'Earn Acorns from levels, daily challenges, mini-games and the Nursery. Cosmetics are bought once and can be worn by any guardian.'), body);
+    ui.append(bar, el('p', { class: 'sub' }, COSMETICS_ENABLED ? 'Earn Acorns from levels, daily challenges, mini-games and the Nursery. Cosmetics are bought once and can be worn by any guardian.' : 'Earn Acorns from levels, daily challenges, mini-games and the Nursery, and spend them on permanent boosts.'), body);
     render();
     anim();
   },
@@ -886,7 +898,7 @@ const SCREENS = {
     startMusic(lv ? lv.world : 5);
     game = new Game(canvas, {
       level, loadout, autoCollect: data.settings.autoCollect, ranks: data.ranks,
-      cosmetics: data.equipped, boosts: data.boosts,
+      cosmetics: COSMETICS_ENABLED ? data.equipped : {}, boosts: data.boosts,
       onPause: () => pause(),
       onEnd: (res) => onEnd(level, loadout, res),
     });
@@ -1047,7 +1059,7 @@ const SCREENS = {
       for (const k of lists[tab]) {
         const ok = known(k);
         const card = el('button', { class: `lex-card ${k === sel ? 'on' : ''} ${ok ? '' : 'locked'}`, onclick: () => { sel = k; sfx('click'); renderGrid(); renderDetail(); } });
-        const pc = portrait(k, 64, !GUARDIANS[k], GUARDIANS[k] ? data.equipped[k] : null);
+        const pc = portrait(k, 64, !GUARDIANS[k], GUARDIANS[k] ? cos(k) : null);
         if (!ok) pc.classList.add('silhouette');
         card.append(pc, el('span', {}, ok ? (GUARDIANS[k] || ROTLINGS[k]).name : '???'));
         grid.append(card);
@@ -1072,7 +1084,7 @@ const SCREENS = {
       ctx.fillStyle = isG ? '#6fbf4a' : '#4a3a5a';
       ctx.beginPath(); ctx.ellipse(220, 392, 170, 34, 0, 0, Math.PI * 2); ctx.fill();
       if (!known(sel)) ctx.filter = 'brightness(0)';
-      if (isG) { const eq = data.equipped[sel] || {}; drawGuardian(ctx, sel, 220, 392, 290, t, { hat: eq.hat, skin: eq.skin, seed: 2 }); }
+      if (isG) { const eq = cos(sel) || {}; drawGuardian(ctx, sel, 220, 392, 290, t, { hat: eq.hat, skin: eq.skin, seed: 2 }); }
       else { const d = ROTLINGS[sel]; drawRotling(ctx, { k: sel, x: 240, y: 392 + (d.flying ? 40 : 0), def: d, seed: 2, shell: d.shell || 0, shield: d.shield || 0, hurt: 0 }, d.boss ? 150 : d.big ? 210 : d.small ? 400 : 270, t); }
       ctx.filter = 'none';
     };
@@ -1261,4 +1273,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Ca
 // Test hook (used by automated smoke tests only)
 window.__bloomguard = { get game() { return game; }, show, get data() { return data; }, set mapWorld(v) { mapWorld = v; } };
 
-loadSprites().finally(() => show('title'));
+loadSprites().finally(() => { show('title'); if (cosmeticRefund) toast(`Cosmetics removed: refunded ${cosmeticRefund} 🌰`); });

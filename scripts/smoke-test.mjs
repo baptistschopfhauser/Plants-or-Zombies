@@ -215,10 +215,11 @@ if (!(await page.locator('.lexicon').count())) errors.push('gamepad A-press did 
 await page.evaluate(() => window.__bloomguard.show('guide'));
 await page.click('.lex-card >> nth=0'); await page.click('.tabs button >> nth=1'); await page.click('.tabs button >> nth=2');
 for (const s of ['settings', 'grove', 'trophies', 'store', 'nursery', 'daily', 'minigames', 'extras', 'studio', 'title']) { await page.evaluate((s) => window.__bloomguard.show(s), s); await page.waitForTimeout(150); }
-// store: buy and equip a hat
+// store: buy a boost (cosmetics are switched off)
 await page.evaluate(() => { window.__bloomguard.data.acorns = 5000; window.__bloomguard.show('store'); });
-await page.click('.items .item >> nth=1 >> button');
-if (!(await page.evaluate(() => Object.values(window.__bloomguard.data.equipped).some((e) => e && e.hat)))) errors.push('store purchase/equip failed');
+if (await page.locator('text=Hats').count()) errors.push('cosmetics still visible in the store');
+await page.click('.items .item >> nth=0 >> button');
+if (!(await page.evaluate(() => Object.values(window.__bloomguard.data.boosts).some((n) => n > 0)))) errors.push('store boost purchase failed');
 // nursery: plant a seed
 await page.evaluate(() => window.__bloomguard.show('nursery'));
 await page.click('.nursery-slot >> nth=0 >> button');
