@@ -14,13 +14,38 @@ be added one character at a time.
 - **Style target:** soft painted shading, no heavy black outlines, big readable faces, chunky
   silhouettes that read at 100 px tall on a phone.
 
-## How to add a sprite
-1. Put the file in `www/sprites/guardians/` or `www/sprites/rotlings/`.
-2. List it in `www/sprites/sprites.json`, for example:
-   ```json
-   { "guardians": { "thornling": "thornling.png" }, "rotlings": { "grub": "grub.png" }, "ui": {} }
-   ```
-3. Run `npm run serve` and check it in game and in the Lexicon.
+## How to add your own art (the easy way: Art Studio)
+1. In the game open **Extras → 🎨 Art Studio** and pick a character (Guardians, Rotlings, Portraits or Lawns).
+2. Press **⬇ Download template** to get a 512 px picture with the exact size and anchor. Paint your
+   own original version over it (or use it as a size reference).
+3. Drop your PNG onto the preview, or use **📁 Idle image(s)**. Pick several files for an animated
+   idle loop (they play in name order) and optionally an **⚔ Attack image** (used while shooting or biting).
+4. Adjust **Scale**, **Move X / Y**, **Anim fps** and **Flip** until it sits nicely on the tile
+   (the red dot is the anchor: feet or root go there).
+5. Press **📋 Copy JSON**, paste the line into the matching section of `www/sprites/sprites.json`,
+   and copy the image files into `www/sprites/<group>/`. Reload: it is now used everywhere
+   (battlefield, cards, Lexicon, Store, menus).
+
+All templates at once: `node scripts/export-templates.mjs` writes them to `art-templates/`.
+
+## sprites.json format
+```json
+{
+  "guardians": {
+    "thornling": "thornling.png",
+    "frostbell": { "idle": ["frostbell_1.png", "frostbell_2.png"], "fps": 6,
+                   "attack": "frostbell_attack.png", "hurt": "frostbell_hurt.png",
+                   "scale": 1.1, "offsetX": 0, "offsetY": 0.02, "flip": false }
+  },
+  "rotlings": { "grub": "grub.png" },
+  "portraits": { "wren": "wren.png", "moss": "moss.png" },
+  "backgrounds": { "dawn": "dawn-lawn.png" },
+  "ui": {}
+}
+```
+- Lawn backgrounds (`backgrounds`, keyed by world id: dawn, marsh, orchard, frost, caverns,
+  rotheart) are **1008 × 590 px** (9 × 5 tiles of 112 × 118 px).
+- Anything not listed keeps the built-in code art, so you can replace characters one by one.
 
 ## Guardians (`www/sprites/guardians/`)
 | File | Character |

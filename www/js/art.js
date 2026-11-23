@@ -1,4 +1,4 @@
-import { sprite, drawSprite } from './sprites.js';
+import { entryFor, frameFor, drawEntry } from './sprites.js';
 import { SKINS } from './data.js';
 // Procedural vector art for Bloomguard. Every character, creature and backdrop is an original
 // design drawn in code, so the game ships with no third-party image assets.
@@ -287,15 +287,7 @@ function leaf(ctx, x, y, len, w, ang, color, s) {
   ctx.beginPath();
   ctx.moveTo(len * 0.05, 0);
   ctx.quadraticCurveTo(len * 0.5, -w * 0.12, len * 0.9, 0);
-  for (let i = 1; i <= 3; i++) {
-    const vx = len * (0.2 + i * 0.18);
-    ctx.moveTo(vx, -w * 0.05); ctx.lineTo(vx + len * 0.12, -w * 0.55);
-    ctx.moveTo(vx, w * 0.02); ctx.lineTo(vx + len * 0.12, w * 0.45);
-  }
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.lineWidth = Math.max(1, s * 0.012);
-  ctx.beginPath(); ctx.moveTo(len * 0.2, -w * 0.55); ctx.quadraticCurveTo(len * 0.5, -w * 0.85, len * 0.75, -w * 0.5); ctx.stroke();
   ctx.restore();
 }
 function stem(ctx, x1, y1, cx, cy, x2, y2, w, color = '#3f8f3a') {
@@ -315,8 +307,6 @@ function pot(ctx, x, y, s) {
   const c = '#5fb84a';
   leaf(ctx, x - s * 0.02, y - s * 0.05, s * 0.24, s * 0.07, Math.PI - 0.18, c, s);
   leaf(ctx, x + s * 0.02, y - s * 0.05, s * 0.24, s * 0.07, 0.18, c, s);
-  leaf(ctx, x - s * 0.01, y - s * 0.04, s * 0.17, s * 0.06, Math.PI + 0.45, tint(c, -0.1), s);
-  leaf(ctx, x + s * 0.01, y - s * 0.04, s * 0.17, s * 0.06, -0.45, tint(c, -0.1), s);
 }
 function star(ctx, x, y, r, fill = '#ffe14d') {
   ctx.beginPath();
@@ -348,18 +338,15 @@ export function drawGuardian(ctx, type, x, y, s, t, o = {}) {
 }
 
 function drawGuardianInner(ctx, type, x, y, s, t, o) {
-  const img = sprite('guardians', type);
-  if (img) {
+  const entry = entryFor('guardians', type);
+  if (entry) {
     const seed0 = o.seed || 0;
+    const img = frameFor(entry, t + seed0 * 0.1, { attacking: (o.fire || 0) > 0.2, hurt: !!o.hurt });
     const pop = o.born !== undefined ? Math.min(1, o.born) : 1;
     const breathe = Math.sin(t * 2.2 + seed0) * 0.025;
     const squash = o.fire ? 1 - o.fire * 0.1 : 1;
     shadow(ctx, x, y - s * 0.05, s * 0.32);
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale((1 + breathe) / squash * (0.4 + 0.6 * pop), (1 - breathe) * squash * pop);
-    drawSprite(ctx, img, 0, 0, s * 0.95);
-    ctx.restore();
+    drawEntry(ctx, entry, img, x, y, s * 0.95, { sx: (1 + breathe) / squash * (0.4 + 0.6 * pop), sy: (1 - breathe) * squash * pop });
     if (o.hat && HEAD[type]) { const [dx, dy, hw] = HEAD[type]; drawHat(ctx, o.hat, x + dx * s, y + dy * s, hw * s, t); }
     if (o.level > 1) levelStars(ctx, x, y - s * 0.02, o.level);
     return;
@@ -377,7 +364,7 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
   const elastic = pop < 1 ? 1 - Math.cos(pop * Math.PI * 2.5) * (1 - pop) * 0.6 : 1;
   const breathe = Math.sin(t * 2.2 + seed) * 0.022;
   ctx.translate(x, y);
-  const big = 1.3;
+  const big = 1.2;
   ctx.scale(big * (1 + breathe) * elastic * (pop < 1 ? 0.4 + pop * 0.6 : 1), big * (1 - breathe) * elastic);
   ctx.translate(-x, -y);
   if (!['bramblemat', 'barkwall', 'boulderbud', 'puffball'].includes(type)) pot(ctx, x, y, s);
@@ -438,26 +425,12 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       leaf(ctx, x + s * 0.06, y - s * 0.12, s * 0.26, s * 0.08, -0.55 - sway, '#4f9e3d', s);
       ctx.beginPath(); ctx.ellipse(x, cy, rx, ry, 0, 0, TAU);
       ctx.fillStyle = shadeFill(ctx, x, cy, ry, '#6fcf5a'); ctx.fill();
-      ctx.save(); ctx.clip();
-      // rows of scales, back to front, shaded so they read as layered
-      for (let row = 0; row < 4; row++) {
-        const ry0 = cy - ry * 0.85 + row * ry * 0.48;
-        const n = 4 + (row % 2);
-        for (let i = 0; i < n; i++) {
-          const sx = x - rx * 1.05 + (i + (row % 2 ? 0 : 0.5)) * (rx * 2.1 / n);
-          const g = ctx.createLinearGradient(0, ry0 - ry * 0.3, 0, ry0 + ry * 0.25);
-          g.addColorStop(0, tint('#7fd86a', 0.25)); g.addColorStop(1, tint('#4fa83e', -0.15));
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.ellipse(sx, ry0, rx * 0.34, ry * 0.3, 0, 0, Math.PI);
-          ctx.quadraticCurveTo(sx, ry0 - ry * 0.55, sx + rx * 0.34, ry0); ctx.fill();
-          ctx.strokeStyle = 'rgba(40,90,30,0.35)'; ctx.lineWidth = Math.max(1, s * 0.008); ctx.stroke();
-        }
-      }
-      ctx.restore();
+      ctx.strokeStyle = 'rgba(40,100,30,0.22)'; ctx.lineWidth = Math.max(1.5, s * 0.014);
+      for (const k of [-0.45, 0.05]) { ctx.beginPath(); ctx.ellipse(x, cy + ry * k, rx * 0.9, ry * 0.45, 0, 0.15, Math.PI - 0.15); ctx.stroke(); }
       glossy(ctx, x, cy, rx, ry);
       // thorn tips around the rim
-      for (let i = 0; i < 12; i++) {
-        const a = -Math.PI * 1.05 + (i / 11) * Math.PI * 1.1;
+      for (let i = 0; i < 7; i++) {
+        const a = -Math.PI * 0.95 + (i / 6) * Math.PI * 0.9;
         const bx = x + Math.cos(a) * rx * 0.98, by = cy + Math.sin(a) * ry * 0.98;
         const len = s * (0.07 + (i % 2) * 0.025);
         const g = ctx.createLinearGradient(bx, by, bx + Math.cos(a) * len, by + Math.sin(a) * len);
@@ -498,12 +471,10 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       ctx.fillStyle = g; ctx.fill();
       ctx.save(); ctx.clip();
       // bark plates
-      for (let i = 0; i < 6; i++) {
-        const px = x - s * 0.3 + i * s * 0.11;
+      for (let i = 0; i < 3; i++) {
+        const px = x - s * 0.2 + i * s * 0.2;
         ctx.strokeStyle = 'rgba(40,20,8,0.45)'; ctx.lineWidth = s * 0.012;
         ctx.beginPath(); ctx.moveTo(px, y - s * 0.74); ctx.bezierCurveTo(px + s * 0.03, y - s * 0.5, px - s * 0.03, y - s * 0.3, px + s * 0.01, y - s * 0.05); ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,220,170,0.15)'; ctx.lineWidth = s * 0.008;
-        ctx.beginPath(); ctx.moveTo(px + s * 0.02, y - s * 0.72); ctx.bezierCurveTo(px + s * 0.05, y - s * 0.5, px - s * 0.01, y - s * 0.3, px + s * 0.03, y - s * 0.06); ctx.stroke();
       }
       ctx.restore();
       // cut top with growth rings
@@ -512,7 +483,7 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       tg.addColorStop(0, '#f2d0a0'); tg.addColorStop(1, '#c8965a');
       ctx.fillStyle = tg; ctx.fill();
       ctx.strokeStyle = 'rgba(120,70,30,0.5)'; ctx.lineWidth = 1.5;
-      for (const r of [0.2, 0.13, 0.06]) { ctx.beginPath(); ctx.ellipse(x + s * 0.01, y - s * 0.735, s * r, s * r * 0.26, 0, 0, TAU); ctx.stroke(); }
+      for (const r of [0.17, 0.08]) { ctx.beginPath(); ctx.ellipse(x + s * 0.01, y - s * 0.735, s * r, s * r * 0.26, 0, 0, TAU); ctx.stroke(); }
       // mossy crown + a sprout
       for (let i = 0; i < 6; i++) circle(ctx, x - s * 0.24 + i * s * 0.07, y - s * 0.71 + Math.sin(i * 1.7) * s * 0.01, s * 0.045, i % 2 ? '#7fd05a' : '#5fb84a');
       leaf(ctx, x + s * 0.1, y - s * 0.76, s * 0.14, s * 0.045, -1.2, '#6fcf5a', s);
@@ -696,14 +667,8 @@ function drawGuardianInner(ctx, type, x, y, s, t, o) {
       ctx.closePath();
       ctx.fillStyle = shadeFill(ctx, hx, hy, s * 0.24, '#ffb84a'); ctx.fill();
       ctx.save(); ctx.clip();
-      ctx.strokeStyle = 'rgba(160,90,20,0.45)'; ctx.lineWidth = Math.max(1, s * 0.01);
-      const hr = s * 0.045;
-      for (let row = -4; row <= 4; row++) for (let col = -4; col <= 4; col++) {
-        const cx = hx + col * hr * 1.75 + (row % 2 ? hr * 0.87 : 0), cy = hy + row * hr * 1.5;
-        ctx.beginPath();
-        for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + (k * Math.PI) / 3; ctx.lineTo(cx + Math.cos(a) * hr, cy + Math.sin(a) * hr); }
-        ctx.closePath(); ctx.stroke();
-      }
+      ctx.strokeStyle = 'rgba(170,100,20,0.3)'; ctx.lineWidth = Math.max(2, s * 0.02);
+      for (const k of [-0.13, 0.0, 0.13]) { ctx.beginPath(); ctx.ellipse(hx, hy + k * s, s * 0.24, s * 0.05, 0, 0, Math.PI); ctx.stroke(); }
       ctx.restore();
       glossy(ctx, hx, hy, s * 0.2, s * 0.24);
       // honey drips
@@ -882,17 +847,16 @@ export function drawRotling(ctx, e, s, t) {
 }
 
 function drawRotlingInner(ctx, e, s, t) {
-  const img = sprite('rotlings', e.k);
-  if (img && !e.burrowed) {
+  const entry = entryFor('rotlings', e.k);
+  if (entry && !e.burrowed) {
     const d = e.def;
     const scale = d.boss ? 1.55 : d.big ? 1.25 : d.small ? 0.62 : 1;
+    const img = frameFor(entry, t + e.seed * 0.1, { attacking: !!e.eating, hurt: e.hurt > 0 });
     const walk = e.eating ? Math.sin(t * 14) * 0.05 : Math.sin(t * 8 + e.seed) * 0.04;
     shadow(ctx, e.x, e.y - s * 0.04, s * 0.3 * scale);
     ctx.save();
     if (e.dying !== undefined) ctx.globalAlpha = Math.max(0, e.dying);
-    ctx.translate(e.x, e.y + (d.flying ? -s * 0.38 : 0));
-    ctx.rotate(walk);
-    drawSprite(ctx, img, 0, 0, s * 0.85 * scale);
+    drawEntry(ctx, entry, img, e.x, e.y + (d.flying ? -s * 0.38 : 0), s * 0.85 * scale, { rot: walk });
     ctx.restore();
     return;
   }
@@ -987,21 +951,16 @@ function drawRotlingInner(ctx, e, s, t) {
   ctx.globalAlpha = 0.45;
   ctx.beginPath(); ctx.ellipse(cx - r * 0.15, bodyB - r * 0.55, r * 0.6, r * 0.45, 0, 0, TAU); ctx.fill();
   ctx.globalAlpha = 1;
-  for (const [dx, dy, rr] of [[0.45, -1.5, 0.16], [0.65, -0.9, 0.12], [-0.6, -1.7, 0.1], [0.2, -0.5, 0.08]]) circle(ctx, cx + dx * r, bodyB + dy * r, rr * r, tint(body, -0.25));
-  ctx.strokeStyle = tint(body, -0.45); ctx.lineWidth = Math.max(1, r * 0.04);
-  ctx.beginPath(); ctx.moveTo(cx + r * 0.75, bodyT + r * 0.8); ctx.lineTo(cx + r * 0.55, bodyT + r * 1.05); ctx.lineTo(cx + r * 0.7, bodyT + r * 1.3); ctx.stroke();
-  // drips of goo at the bottom
-  ctx.fillStyle = tint(body, -0.4);
-  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(cx + (i - 1) * r * 0.5, bodyB - r * 0.05, r * 0.08, r * 0.16 + Math.sin(t * 3 + i + e.seed) * r * 0.04, 0, 0, TAU); ctx.fill(); }
+  circle(ctx, cx + r * 0.5, bodyB - r * 1.3, r * 0.14, tint(body, -0.18));
   ctx.restore();
   lineColor = ink; outline(ctx, s, d.boss ? 0.042 : 0.032); lineColor = null;
   glossy(ctx, cx, midY, r * 0.95, r * 1.0);
 
   // ---- head growths: moss + tiny toadstools ----
   ctx.fillStyle = '#6a8a4a';
-  for (let i = 0; i < 5; i++) circle(ctx, cx - r * 0.45 + i * r * 0.22, bodyT + r * 0.12 + Math.sin(i * 2) * r * 0.04, r * 0.15, i % 2 ? '#7a9a52' : '#5f7d40');
+  for (let i = 0; i < 3; i++) circle(ctx, cx - r * 0.25 + i * r * 0.25, bodyT + r * 0.1, r * 0.17, i % 2 ? '#7a9a52' : '#5f7d40');
   if (!d.boss && e.k !== 'crystalback' && e.k !== 'frostcrawler' && e.k !== 'rotpriest') {
-    for (const [dx, h, cc] of [[0.25, 0.42, '#d9584a'], [-0.18, 0.3, '#e8c27a']]) {
+    for (const [dx, h, cc] of [[0.2, 0.42, '#d9584a']]) {
       const mx = cx + dx * r, my = bodyT + r * 0.12;
       ctx.fillStyle = '#f0e6d0'; ctx.fillRect(mx - r * 0.04, my - h * r, r * 0.08, h * r);
       ctx.beginPath(); ctx.ellipse(mx, my - h * r, r * 0.18, r * 0.11, 0, Math.PI, 0); ctx.closePath();
@@ -1080,9 +1039,6 @@ function drawRotlingInner(ctx, e, s, t) {
   eg.addColorStop(0, '#fffbe6'); eg.addColorStop(0.8, '#f0e6b8'); eg.addColorStop(1, '#c8b88a');
   ctx.fillStyle = eg; ctx.fill();
   ctx.strokeStyle = 'rgba(40,20,20,0.35)'; ctx.lineWidth = Math.max(1, r * 0.03); ctx.stroke();
-  // blood-shot veins
-  ctx.strokeStyle = 'rgba(200,60,70,0.55)'; ctx.lineWidth = Math.max(1, r * 0.02);
-  for (let i = 0; i < 3; i++) { const a = 0.4 + i * 0.5; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a) * er, ey + Math.sin(a) * er); ctx.lineTo(ex + Math.cos(a) * er * 0.55, ey + Math.sin(a) * er * 0.55); ctx.stroke(); }
   const conf = e.confused > 0;
   const px = conf ? ex + Math.cos(t * 12) * er * 0.3 : ex - er * 0.32, py = conf ? ey + Math.sin(t * 12) * er * 0.3 : ey + er * 0.05;
   const iris = d.boss ? '#ff3b6b' : e.k === 'frostcrawler' ? '#3ab0ff' : e.k === 'emberbeast' ? '#ff9a1a' : '#d0384e';
@@ -1099,14 +1055,10 @@ function drawRotlingInner(ctx, e, s, t) {
   ctx.beginPath(); ctx.moveTo(mx0, my0); ctx.quadraticCurveTo(mx0 + mw * 0.5, my0 + mh * 2.2, mx0 + mw, my0 - r * 0.04); ctx.quadraticCurveTo(mx0 + mw * 0.5, my0 + mh * 0.3, mx0, my0); ctx.closePath();
   ctx.fillStyle = '#3a1222'; ctx.fill();
   ctx.fillStyle = '#f6f0c8';
-  for (let i = 0; i < 4; i++) {
-    const tx = mx0 + mw * (0.15 + i * 0.22), ty = my0 + mh * 0.35 - Math.abs(i - 1.5) * r * 0.02;
+  for (let i = 0; i < 2; i++) {
+    const tx = mx0 + mw * (0.3 + i * 0.4), ty = my0 + mh * 0.35;
     ctx.beginPath(); ctx.moveTo(tx - r * 0.05, ty - r * 0.02); ctx.lineTo(tx + (i % 2 ? 0.02 : -0.01) * r, ty + r * (0.1 + (i % 2) * 0.05)); ctx.lineTo(tx + r * 0.05, ty - r * 0.02); ctx.fill();
   }
-  // drool
-  const dr = (t * 0.7 + e.seed) % 1;
-  ctx.fillStyle = 'rgba(190,230,140,0.85)';
-  ctx.beginPath(); ctx.ellipse(mx0 + mw * 0.3, my0 + mh + dr * r * 0.4, r * 0.04, r * 0.06 + dr * r * 0.06, 0, 0, TAU); ctx.fill();
 
   // ---- arms (noodly, reaching toward the garden) ----
   if (d.boss !== 'dive') {
@@ -1325,6 +1277,8 @@ export function drawBoulder(ctx, x, y, s, t) {
 
 // ---------- story portraits ----------
 export function drawPortrait(ctx, who, x, y, size, t, talking = false) {
+  const pe = entryFor('portraits', who);
+  if (pe) { drawEntry(ctx, pe, frameFor(pe, t, { attacking: talking }), x, y, size * 0.9, { sy: 1 + (talking ? Math.sin(t * 14) * 0.01 : 0) }); return; }
   const s = size;
   const mouth = talking ? Math.abs(Math.sin(t * 14)) : 0;
   const blink = t % 3.5 < 0.12;
@@ -1469,7 +1423,7 @@ export function makeDecor(world, L) {
   }[world.id];
   const colors = ['#ff7eb6', '#fff', '#c58df0', '#7fd8ff'];
   const decor = [];
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < 28; i++) {
     decor.push({ x: L.BX + rnd() * (L.BR - L.BX), y: L.BY + rnd() * (L.BB - L.BY), kind: kinds[Math.floor(rnd() * kinds.length)], color: colors[Math.floor(rnd() * 4)] });
   }
   const stars = [];

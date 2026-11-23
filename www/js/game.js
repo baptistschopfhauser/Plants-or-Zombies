@@ -5,6 +5,7 @@ import {
   drawBackdrop, drawGroundDetails, makeDecor, makeBoardTexture, drawClouds,
 } from './art.js';
 import { sfx } from './audio.js';
+import { entryFor } from './sprites.js';
 
 export const W = 1280, H = 720;
 const BX = 150, BY = 122, TW = 112, TH = 118;
@@ -1355,7 +1356,9 @@ export class Game {
   }
 
   _drawBoard(ctx, t) {
-    ctx.drawImage(this.boardTex, BX, BY);
+    const lawnArt = entryFor('backgrounds', this.world.id);
+    if (lawnArt) ctx.drawImage(lawnArt.idle[0], BX, BY, BOARD_R - BX, BOARD_B - BY);
+    else ctx.drawImage(this.boardTex, BX, BY);
     drawGroundDetails(ctx, this.world, null, this.decor, t);
     // wooden garden frame with an inner soft shadow
     ctx.save();

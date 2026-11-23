@@ -316,7 +316,7 @@ export function dailyLevel(key = todayKey(), unlockedLevel = 36) {
 export const POTLUCK = [
   { name: 'Pot Luck I', world: 0, pots: 18, rotChance: 0.36, pool: ['grub', 'skitter', 'shellback'], guardians: ['thornling', 'frostbell', 'barkwall', 'vinewhip', 'puffball'], reward: 60 },
   { name: 'Pot Luck II', world: 2, pots: 22, rotChance: 0.48, pool: ['grub', 'skitter', 'shieldbug', 'emberbeast', 'spore'], guardians: ['thornling', 'twinbud', 'emberroot', 'barkwall', 'rootsnare', 'hivebloom'], reward: 90 },
-  { name: 'Pot Luck III', world: 4, pots: 25, rotChance: 0.45, pool: ['grub', 'shieldbug', 'crystalback', 'rotpriest', 'brute', 'burrower'], guardians: ['lanceleaf', 'emberroot', 'hivebloom', 'boulderbud', 'stormseed', 'mossmender', 'twinbud'], reward: 130 },
+  { name: 'Pot Luck III', world: 4, pots: 25, rotChance: 0.4, pool: ['grub', 'shieldbug', 'crystalback', 'rotpriest', 'brute', 'burrower'], guardians: ['lanceleaf', 'emberroot', 'hivebloom', 'boulderbud', 'stormseed', 'mossmender', 'twinbud'], reward: 130 },
 ];
 
 // ---------- Lexicon: roles, lore and tips (all original) ----------
