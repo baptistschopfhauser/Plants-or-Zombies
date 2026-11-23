@@ -1,8 +1,8 @@
 // Bloomguard — core game engine (simulation, input and rendering on a 1280x720 logical canvas).
-import { COLS, ROWS, GUARDIANS, ROTLINGS, WORLDS, LEVELS, LANTERNS, UPGRADE_MAX } from './data.js';
+import { COLS, ROWS, GUARDIANS, ROTLINGS, WORLDS, LEVELS, LANTERNS, UPGRADE_MAX, BOSS_TITLES } from './data.js';
 import {
   drawGuardian, drawRotling, drawLantern, drawGlowMote, drawWildseed, drawFirefly, drawCrystal, drawBee, drawBoulder,
-  drawBackdrop, drawGroundDetails, makeDecor,
+  drawBackdrop, drawGroundDetails, makeDecor, makeBoardTexture, drawClouds,
 } from './art.js';
 import { sfx } from './audio.js';
 
@@ -12,7 +12,6 @@ const BOARD_R = BX + COLS * TW;
 const BOARD_B = BY + ROWS * TH;
 const CARD_X = 124, CARD_H = 100, CARD_Y = 6, CARD_GAP = 6;
 const STEP = 1 / 60;
-const MAX_SEEDS = 3;
 const NON_BOSS = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
 const BOSSES = ['grubmother', 'bogmaw', 'cinderhusk', 'rimefang', 'gloomwyrm', 'monarch'];
 
@@ -31,20 +30,28 @@ export class Game {
     this.opts = opts;
     this.ranks = opts.ranks || {};
     this.endless = opts.level === 'endless';
-    this.levelIndex = this.endless ? -1 : opts.level;
+    this.custom = typeof opts.level === 'object' && opts.level !== null;
+    this.levelIndex = this.endless ? -1 : this.custom ? -2 : opts.level;
     this.level = this.endless
       ? { world: 0, waves: Infinity, pool: ['grub', 'skitter'], budget: 4, goal: 'defend', endless: true }
-      : LEVELS[opts.level];
-    this.goal = this.level.goal || 'defend';
+      : this.custom ? { ...opts.level } : LEVELS[opts.level];
+    this.potluck = this.level.mode === 'potluck';
+    this.mods = new Set(this.level.mods || []);
+    if (this.mods.has('frenzy')) this.level.waves += 2;
+    this.boosts = opts.boosts || {};
+    this.cosmetics = opts.cosmetics || {};
+    this.maxSeeds = 3 + (this.boosts.pouch || 0);
+    this.goal = this.potluck ? 'potluck' : this.level.goal || 'defend';
     this.setWorld(this.level.world);
     this.activeRows = this.level.rows || [0, 1, 2, 3, 4];
-    this.loadout = (this.goal === 'given' ? this.level.given : opts.loadout).slice();
+    this.loadout = this.potluck ? [] : (this.goal === 'given' ? this.level.given : opts.loadout).slice();
     if (this.goal === 'budget') this.loadout = this.loadout.filter((k) => GUARDIANS[k].kind !== 'producer');
-    this.cardW = Math.min(96, Math.floor((W - CARD_X - 160 - 96 - 14 - 130) / Math.max(1, this.loadout.length)) - CARD_GAP);
+    this._layoutCards();
     this.autoCollect = !!opts.autoCollect;
 
     this.time = 0;
-    this.glow = this.level.startGlow || (this.world.mech === 'night' || this.world.mech === 'crystal' ? 200 : 150);
+    this.glow = (this.level.startGlow || (this.world.mech === 'night' || this.world.mech === 'crystal' ? 200 : 150)) + 50 * (this.boosts.headstart || 0);
+    if (this.potluck) this.glow = 0;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
     this.tiles = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => ({ frozen: 0, crystal: false, scorch: 0, warn: 0, blight: false, cleanse: 0 })));
     this.enemies = [];
@@ -62,7 +69,7 @@ export class Game {
     this.bolts = [];
     this.strikes = [];
     this.lanterns = this.level.lanterns || LANTERNS;
-    this.seeds = 0;
+    this.seeds = this.boosts.lanternoil ? 1 : 0;
     this.seedMeter = 0;
     this.seedMode = false;
     this.empower = 0;
@@ -86,6 +93,8 @@ export class Game {
     this.timers = { sky: 5, firefly: 4, ember: 20, blizzard: 26, crystal: 18, blight: 28, gust: 18 };
 
     this._setupWorldTiles();
+    if (this.potluck) this._setupPots();
+    this.boardTex = makeBoardTexture(this.world, COLS, ROWS, TW, TH, this.activeRows);
     if (this.goal === 'sprouts') {
       const rows = [this.activeRows[0], this.activeRows[Math.floor(this.activeRows.length / 2)], this.activeRows[this.activeRows.length - 1]];
       for (const r of new Set(rows)) this.grid[r][0] = this._makeGuardian('sprout', r, 0);
@@ -104,14 +113,70 @@ export class Game {
     this.last = performance.now();
     this.acc = 0;
     this.raf = requestAnimationFrame(this._loop);
-    const goalText = { sprouts: 'Protect the sprouts!', budget: 'No Glow income: spend wisely!', given: 'Use the guardians you are given!' }[this.goal];
-    this.showBanner(this.endless ? 'Endless Bloom' : `${this.world.name} ${(this.levelIndex % 6) + 1}${goalText ? ' — ' + goalText : ''}`, 3);
+    const goalText = { sprouts: 'Protect the sprouts!', budget: 'No Glow income: spend wisely!', given: 'Use the guardians you are given!', potluck: 'Smash the pots! Plant what you find.' }[this.goal];
+    const title = this.endless ? 'Endless Bloom' : this.potluck ? this.level.name : this.level.daily ? 'Daily Challenge' : `${this.world.name} ${(this.levelIndex % 6) + 1}`;
+    this.showBanner(`${title}${goalText ? ' — ' + goalText : ''}`, 3);
   }
 
   setWorld(i) {
     this.worldIndex = i;
     this.world = WORLDS[i];
     this.decor = makeDecor(this.world, { W, H, BX, BY, BR: BOARD_R, BB: BOARD_B });
+    if (this.activeRows) this.boardTex = makeBoardTexture(this.world, COLS, ROWS, TW, TH, this.activeRows);
+  }
+
+  _layoutCards() {
+    this.cardW = Math.min(96, Math.floor((W - CARD_X - 160 - 96 - 14 - 130) / Math.max(1, this.loadout.length)) - CARD_GAP);
+  }
+  costOf(type) {
+    if (this.potluck) return 0;
+    return Math.round(GUARDIANS[type].cost * (this.mods.has('thrifty') ? 0.8 : 1));
+  }
+
+  _setupPots() {
+    const L = this.level;
+    const spots = [];
+    for (const r of this.activeRows) for (let c = 4; c < COLS; c++) spots.push([r, c]);
+    spots.sort(() => Math.random() - 0.5);
+    const chosen = spots.slice(0, Math.min(L.pots, spots.length));
+    const n = chosen.length;
+    const rots = Math.round(n * L.rotChance);
+    const golds = 2;
+    chosen.forEach(([r, c], i) => {
+      let content;
+      if (i < golds) content = { type: 'seed' };
+      else if (i < golds + rots) content = { type: 'rot', k: pick(L.pool) };
+      else content = { type: 'guard', k: pick(L.guardians) };
+      this.tiles[r][c].pot = { content, gold: i < golds, wobble: 0, seed: Math.random() * 10 };
+    });
+    // make sure the player can always open a few guardians first: the left-most column of pots are guardians
+    for (const r of this.activeRows) { const t = this.tiles[r][4]; if (t.pot && !t.pot.gold) t.pot.content = { type: 'guard', k: pick(L.guardians) }; }
+    this.level.waves = 0;
+    this.potsLeft = n;
+  }
+
+  breakPot(r, c) {
+    const t = this.tiles[r][c];
+    if (!t.pot) return false;
+    const { content } = t.pot;
+    t.pot = null;
+    this.potsLeft--;
+    this.puff(colX(c), rowY(r) - 30, '#c07a4a', 18, 200);
+    sfx('boom');
+    if (content.type === 'rot') {
+      this.spawnEnemy(content.k, r, colX(c));
+      for (const e of this.enemies) if (e.row === r && Math.abs(e.x - colX(c)) < 40) e.stun = 0.6;
+      this.floatText(colX(c), rowY(r) - 80, 'Eek!', '#ffb0d0');
+    } else if (content.type === 'guard') {
+      this.loadout.push(content.k);
+      this.cooldowns.push(0);
+      this._layoutCards();
+      this.floatText(colX(c), rowY(r) - 80, GUARDIANS[content.k].name + '!', '#c8ff9a');
+      sfx('upgrade');
+    } else {
+      this.pickups.push({ x: colX(c), y: rowY(r) - 50, t: 0, taken: false });
+    }
+    return true;
   }
 
   _setupWorldTiles() {
@@ -166,13 +231,13 @@ export class Game {
   power(g, base) { return base * pow(g.level) * this.rank(g.type) * this.boostAt(g); }
   plantable(r, c) {
     const t = this.tiles[r][c];
-    return this.activeRows.includes(r) && !t.frozen && !t.crystal && t.scorch <= 0;
+    return this.activeRows.includes(r) && !t.frozen && !t.crystal && !t.pot && t.scorch <= 0;
   }
   _makeGuardian(type, r, c) {
     const def = GUARDIANS[type] || { hp: 300 };
-    const hp = def.hp * this.rank(type);
+    const hp = def.hp * this.rank(type) * (this.mods && this.mods.has('fragile') ? 0.7 : 1);
     return {
-      type, r, c, x: colX(c), y: rowY(r) + 2, level: 1, hp, maxHp: hp,
+      type, r, c, x: colX(c), y: rowY(r) + 2, level: 1, hp, maxHp: hp, born: 0,
       timer: def.firstDelay ?? def.interval ?? 0, armed: false, arm: def.armTime || 0,
       fire: 0, hurt: 0, seed: Math.random() * 10, fuse: 0.6, frozen: 0, over: 0, storm: 0, volleys: 0,
     };
@@ -231,8 +296,7 @@ export class Game {
     this.shovel = false;
     this.seedMode = false;
     if (this.selected === i) { this.selected = -1; return; }
-    const g = GUARDIANS[this.loadout[i]];
-    if (this.cooldowns[i] > 0 || this.glow < g.cost) { sfx('deny'); this.selected = -1; return; }
+    if (this.cooldowns[i] > 0 || this.glow < this.costOf(this.loadout[i])) { sfx('deny'); this.selected = -1; return; }
     this.selected = i;
     this.dragFromCard = true;
     sfx('click');
@@ -248,6 +312,7 @@ export class Game {
 
   tapTile(r, c) {
     const t = this.tiles[r][c];
+    if (t.pot) return this.breakPot(r, c);
     if (t.frozen > 0) {
       t.frozen--;
       this.puff(colX(c), rowY(r) - 40, '#e8fbff', 8);
@@ -280,7 +345,8 @@ export class Game {
     const type = this.loadout[i];
     const def = GUARDIANS[type];
     if (!this.plantable(r, c)) { sfx('deny'); return false; }
-    if (this.cooldowns[i] > 0 || this.glow < def.cost) { sfx('deny'); this.selected = -1; return false; }
+    const cost = this.costOf(type);
+    if (this.cooldowns[i] > 0 || this.glow < cost) { sfx('deny'); this.selected = -1; return false; }
     const existing = this.grid[r][c];
     if (existing) {
       const upgradable = existing.type === type && existing.level < UPGRADE_MAX && def.kind !== 'trap' && def.kind !== 'instant';
@@ -294,13 +360,15 @@ export class Game {
       sfx('upgrade');
     } else {
       this.grid[r][c] = this._makeGuardian(type, r, c);
+      this.puff(colX(c), rowY(r) - 30, '#ffffff', 6, 90);
       this.puff(colX(c), rowY(r) - 10, '#7a5532', 10);
       sfx('plant');
     }
     this.stats.planted++;
-    this.stats.spent += def.cost;
-    this.glow -= def.cost;
-    this.cooldowns[i] = def.recharge;
+    this.stats.spent += cost;
+    this.glow -= cost;
+    if (this.potluck) { this.loadout.splice(i, 1); this.cooldowns.splice(i, 1); this._layoutCards(); }
+    else this.cooldowns[i] = def.recharge;
     this.selected = -1;
     if (this.hint === 0) this.hint = 1;
     return true;
@@ -314,7 +382,7 @@ export class Game {
   }
   collectSeed(s) {
     s.taken = true;
-    if (this.seeds < MAX_SEEDS) { this.seeds++; this.floatText(s.x, s.y - 30, 'Wildseed!', '#a8ff7a'); }
+    if (this.seeds < this.maxSeeds) { this.seeds++; this.floatText(s.x, s.y - 30, 'Wildseed!', '#a8ff7a'); }
     else { this.glow += 50; this.floatText(s.x, s.y - 30, '+50 Glow', '#ffe9a0'); }
     sfx('upgrade');
     if (this.hint === -1 && this.levelIndex <= 1 && !this._seedHinted) { this._seedHinted = true; this.hint = 3; this._hintTimer = this.time + 7; }
@@ -417,6 +485,7 @@ export class Game {
       list.push(k);
       budget -= ROTLINGS[k].cost;
     }
+    if (this.mods.has('swarming') && n >= 1) list.push('swarm');
     const spread = isBig ? 4 : 7;
     const carrier = n >= 1 ? Math.floor(Math.random() * list.length) : -1;
     list.forEach((k, i) => this.spawnQueue.push({ k, carries: i === carrier && !ROTLINGS[k].boss, at: this.time + (ROTLINGS[k].boss ? 3 : (i / list.length) * spread + rand(0, 1.5)) }));
@@ -430,12 +499,13 @@ export class Game {
   spawnEnemy(k, row, x, carries = false) {
     const def = ROTLINGS[k];
     const r = row ?? (def.boss ? this.activeRows[Math.floor(this.activeRows.length / 2)] : pick(this.activeRows));
-    const hpScale = this.endless ? 1 + this.wave * 0.04 : 1;
+    const hpScale = (this.endless ? 1 + this.wave * 0.04 : 1) * (this.mods.has('tough') ? 1.4 : 1);
+    if (def.boss && !this.cine) { this.cine = { t: 2.8, max: 2.8, k }; sfx('wave'); }
     const count = def.group || 1;
     for (let i = 0; i < count; i++) {
       this.enemies.push({
         k, def, row: r, x: (x ?? BOARD_R + rand(30, 70)) + i * 26, y: rowY(r),
-        hp: def.hp * hpScale, maxHp: def.hp * hpScale, shell: def.shell || 0, shield: def.shield || 0, speed: def.speed,
+        hp: def.hp * hpScale, maxHp: def.hp * hpScale, shell: def.shell || 0, shield: def.shield || 0, speed: def.speed * (this.mods.has('swift') ? 1.3 : 1),
         slow: 0, burn: 0, burnDps: 0, hurt: 0, eating: false, seed: Math.random() * 10,
         burrowed: !!def.burrow, stun: 0, summon: def.every || 8, confused: 0, snared: 0, frozenTime: 0,
         spitTimer: def.ranged ? def.ranged.interval : 0, carries: carries && i === 0, diving: 0,
@@ -463,6 +533,7 @@ export class Game {
     }
     e.hp -= amt;
     e.hurt = 0.08;
+    if (!e.def.boss && !e.def.big && amt > 15) e.kb = Math.min(6, (e.kb || 0) + 2);
     if (e.hp <= 0) this.kill(e);
   }
 
@@ -471,10 +542,10 @@ export class Game {
     e.dead = true;
     this.stats.kills++;
     this.corpses.push({ ...e, dying: 1 });
-    this.seedMeter += e.def.boss ? 100 : 4 + e.def.cost * 3;
+    this.seedMeter += (e.def.boss ? 100 : 4 + e.def.cost * 3) * (this.mods.has('bounty') ? 2 : 1);
     while (this.seedMeter >= 100) {
       this.seedMeter -= 100;
-      if (this.seeds < MAX_SEEDS) { this.seeds++; this.floatText(this._seedBtn().x + 60, CARD_Y + CARD_H + 26, '+1 Wildseed', '#a8ff7a'); sfx('upgrade'); }
+      if (this.seeds < this.maxSeeds) { this.seeds++; this.floatText(this._seedBtn().x + 60, CARD_Y + CARD_H + 26, '+1 Wildseed', '#a8ff7a'); sfx('upgrade'); }
     }
     this.puff(e.x, e.y - 30, e.def.color, e.def.boss ? 40 : 14, e.def.boss ? 260 : 140);
     sfx('die');
@@ -512,9 +583,16 @@ export class Game {
   }
 
   update(dt) {
+    if (this.cine) {
+      this.cine.t -= dt;
+      if (this.cine.t <= 0) this.cine = null;
+      this.time += dt * 0.15;
+      for (const row of this.grid) for (const g of row) if (g && g.born < 1) g.born = Math.min(1, g.born + dt * 2.2);
+      return;
+    }
     this.time += dt;
     const mech = this.world.mech;
-    const income = this.goal !== 'budget';
+    const income = this.goal !== 'budget' && !this.potluck;
 
     for (let i = 0; i < this.cooldowns.length; i++) this.cooldowns[i] = Math.max(0, this.cooldowns[i] - dt);
     if (this.empower > 0) this.empower -= dt;
@@ -522,8 +600,8 @@ export class Game {
 
     // ----- world mechanics -----
     const skyEvery = { day: [8, 11], ember: [9, 12], frost: [12, 15], blight: [11, 13] }[mech];
-    if (income && skyEvery && this.time >= T.sky) {
-      T.sky = this.time + rand(...skyEvery);
+    if (income && !this.potluck && skyEvery && this.time >= T.sky) {
+      T.sky = this.time + rand(...skyEvery) * (this.mods.has('glowrain') ? 0.5 : 1);
       this.spawnMote(rand(BX + 40, BOARD_R - 40), BY - 20, 25, false);
     }
     if (income && mech === 'night' && this.time >= T.firefly) {
@@ -586,7 +664,7 @@ export class Game {
     this.strikes = this.strikes.filter((s) => !s.done);
 
     // ----- waves -----
-    if (this.wave < this.level.waves) {
+    if (!this.potluck && this.wave < this.level.waves) {
       const fieldClear = this.enemies.length === 0 && this.spawnQueue.length === 0;
       if (fieldClear && this.wave > 0 && this.nextWave - this.time > 4) this.nextWave = this.time + 4;
       if (this.time >= this.nextWave) this._launchWave();
@@ -604,6 +682,7 @@ export class Game {
       const def = GUARDIANS[g.type] || {};
       g.hurt = Math.max(0, g.hurt - dt);
       g.fire = Math.max(0, g.fire - dt * 5);
+      if (g.born < 1) g.born = Math.min(1, g.born + dt * 2.2);
       if (g.over > 0) g.over -= dt;
       const tile = this.tiles[g.r][g.c];
       if (tile.blight) g.hp -= 12 * dt;
@@ -849,6 +928,7 @@ export class Game {
       if (e.dead) continue;
       const d = e.def;
       e.hurt = Math.max(0, e.hurt - dt);
+      if (e.kb > 0) { e.x += e.kb * 0.5; e.kb = Math.max(0, e.kb - dt * 30); }
       if (e.burn > 0) { e.burn -= dt; this.damage(e, e.burnDps * dt, 'fire'); if (Math.random() < 0.2) this.puff(e.x, e.y - 40, '#ff8a4c', 1, 30); }
       if (e.dead) continue;
       if (d.heals) {
@@ -964,7 +1044,8 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt);
     this._updateWeather(dt);
 
-    if (!this.endless && this.wave >= this.level.waves && this.enemies.length === 0 && this.spawnQueue.length === 0) this.finish(true);
+    if (this.potluck) { if (this.potsLeft <= 0 && this.enemies.length === 0) this.finish(true); }
+    else if (!this.endless && this.wave >= this.level.waves && this.enemies.length === 0 && this.spawnQueue.length === 0) this.finish(true);
   }
 
   spreadBlight(nearX, nearRow) {
@@ -1076,7 +1157,7 @@ export class Game {
     else if (ch.spend) challengeMet = this.stats.spent <= ch.spend;
     const starList = won ? [true, this.lanterns === (this.level.lanterns || LANTERNS), challengeMet] : [false, false, false];
     const waves = this.endless ? Math.max(0, this.wave - 1) : this.wave;
-    const res = { won, reason, stars: starList.filter(Boolean).length, starList, waves, endless: this.endless, stats: this.stats, boss: this.level.boss };
+    const res = { won, reason, stars: starList.filter(Boolean).length, starList, waves, endless: this.endless, stats: this.stats, boss: this.level.boss, daily: this.level.daily, potluck: this.potluck ? this.level : null };
     this.result = res;
     setTimeout(() => this.opts.onEnd && this.opts.onEnd(res), 900);
   }
@@ -1088,6 +1169,7 @@ export class Game {
     ctx.save();
     if (this.shake > 0) ctx.translate(rand(-6, 6) * this.shake, rand(-6, 6) * this.shake);
     drawBackdrop(ctx, this.world, t, { W, H, BX, BY, BR: BOARD_R, BB: BOARD_B }, this.decor);
+    if (['day', 'ember', 'frost'].includes(this.world.mech)) drawClouds(ctx, W, 18, t, this.world.mech === 'ember' ? 'rgba(255,220,190,0.55)' : 'rgba(255,255,255,0.75)');
     this._drawHome(ctx, t);
     this._drawBoard(ctx, t);
 
@@ -1097,7 +1179,8 @@ export class Game {
         if (!g) continue;
         drawGuardian(ctx, g.type, g.x, g.y, TW, t, {
           level: g.level, fire: g.fire, armed: g.armed, hurt: g.hurt > 0, seed: g.seed, hpFrac: g.hp / g.maxHp,
-          frozen: g.frozen > 0, over: g.over, armor: g.armor, hurtLevel: 1 - g.hp / g.maxHp,
+          frozen: g.frozen > 0, over: g.over, armor: g.armor, hurtLevel: 1 - g.hp / g.maxHp, born: g.born,
+          hat: this.cosmetics[g.type] && this.cosmetics[g.type].hat, skin: this.cosmetics[g.type] && this.cosmetics[g.type].skin,
         });
         if (g.hp < g.maxHp) this._bar(ctx, g.x - 30, g.y - 4, 60, g.hp / g.maxHp, '#6fdc5a');
         if (g.frozen > 0) { ctx.fillStyle = 'rgba(190,240,255,0.35)'; ctx.fillRect(g.x - TW / 2 + 6, g.y - TH + 14, TW - 12, TH - 16); }
@@ -1176,6 +1259,12 @@ export class Game {
     }
     ctx.globalAlpha = 1;
     if (this.empower > 0) { ctx.fillStyle = `rgba(214,168,255,${0.08 + Math.sin(t * 8) * 0.04})`; ctx.fillRect(0, BY, W, H - BY); }
+    // storybook lighting: warm key light from the top-left
+    const light = ctx.createRadialGradient(BX + 120, BY - 60, 40, BX + 300, BY + 120, 900);
+    const nightish = ['night', 'crystal', 'blight'].includes(this.world.mech);
+    light.addColorStop(0, nightish ? 'rgba(160,180,255,0.12)' : 'rgba(255,240,190,0.18)');
+    light.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = light; ctx.fillRect(0, BY, W, H - BY);
     if (this.world.mech === 'night' || this.world.mech === 'crystal') {
       const v = ctx.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 800);
       v.addColorStop(0, 'rgba(0,0,20,0)'); v.addColorStop(1, 'rgba(0,0,20,0.45)');
@@ -1184,6 +1273,7 @@ export class Game {
     ctx.restore();
 
     this._drawHud(ctx, t);
+    if (this.cine) this._drawCinematic(ctx, t);
 
     if (this.banner) {
       const a = clamp(Math.min(this.banner.t, this.banner.dur - this.banner.t) * 3, 0, 1);
@@ -1206,6 +1296,33 @@ export class Game {
       ctx.beginPath(); ctx.roundRect(W / 2 - 450, H - 58, 900, 46, 12); ctx.fill();
       this._text(ctx, msgs[this.hint] || '', W / 2, H - 27, 20, '#fff', 'center');
     }
+  }
+
+  _drawCinematic(ctx, t) {
+    const c = this.cine;
+    const k = 1 - c.t / c.max;
+    const inK = Math.min(1, k * 4), outK = Math.min(1, c.t * 4);
+    const a = Math.min(inK, outK);
+    ctx.save();
+    ctx.fillStyle = `rgba(10,4,14,${0.6 * a})`;
+    ctx.fillRect(0, 0, W, H);
+    // letterbox
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, 90 * a);
+    ctx.fillRect(0, H - 90 * a, W, 90 * a);
+    const def = ROTLINGS[c.k];
+    const bx = W - 380 + (1 - Math.min(1, k * 2.2)) * 520 + (Math.random() - 0.5) * (k > 0.35 && k < 0.6 ? 10 : 0);
+    ctx.globalAlpha = a;
+    drawRotling(ctx, { k: c.k, x: bx, y: H - 110, def, seed: 1, shell: 0, shield: 0, hurt: 0, eating: k > 0.3 && k < 0.7 }, 210, t * 6);
+    // name card
+    const cardX = 80 - (1 - Math.min(1, Math.max(0, k - 0.05) * 7)) * 700;
+    ctx.fillStyle = 'rgba(40,10,40,0.85)';
+    ctx.beginPath(); ctx.moveTo(cardX, 250); ctx.lineTo(cardX + 620, 250); ctx.lineTo(cardX + 580, 400); ctx.lineTo(cardX - 40, 400); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#ff6ad5'; ctx.lineWidth = 4; ctx.stroke();
+    this._text(ctx, 'BOSS', cardX + 30, 292, 24, '#ff9ad5');
+    this._text(ctx, def.name.toUpperCase(), cardX + 30, 350, 52, '#fff4c8');
+    this._text(ctx, BOSS_TITLES[c.k] || '', cardX + 30, 386, 22, '#ffd0e8');
+    ctx.restore();
   }
 
   _drawHome(ctx, t) {
@@ -1236,20 +1353,7 @@ export class Game {
   }
 
   _drawBoard(ctx, t) {
-    const [a, b] = this.world.ground;
-    for (let r = 0; r < ROWS; r++) {
-      const active = this.activeRows.includes(r);
-      for (let c = 0; c < COLS; c++) {
-        const x = BX + c * TW, y = BY + r * TH;
-        ctx.fillStyle = active ? ((r + c) % 2 ? a : b) : (r + c) % 2 ? '#8b6b4a' : '#7f6143';
-        ctx.fillRect(x, y, TW, TH);
-      }
-      if (active) {
-        // soft row edge
-        ctx.fillStyle = 'rgba(0,0,0,0.06)';
-        ctx.fillRect(BX, BY + r * TH + TH - 6, BOARD_R - BX, 6);
-      }
-    }
+    ctx.drawImage(this.boardTex, BX, BY);
     drawGroundDetails(ctx, this.world, null, this.decor, t);
     // tile states
     for (const r of this.activeRows) for (let c = 0; c < COLS; c++) {
@@ -1277,6 +1381,7 @@ export class Game {
         for (let i = 0; i < tile.frozen; i++) { ctx.fillStyle = '#4a7a9a'; ctx.beginPath(); ctx.arc(x + TW / 2 - 14 + i * 14, y + TH - 22, 4, 0, Math.PI * 2); ctx.fill(); }
       }
       if (tile.crystal) drawCrystal(ctx, x + TW / 2, y + TH - 10, TW, t);
+      if (tile.pot) this._drawPot(ctx, x + TW / 2, y + TH - 12, tile.pot, t);
     }
     for (const s of this.strikes) {
       const x = colX(s.c), y = rowY(s.r) - 20;
@@ -1290,6 +1395,36 @@ export class Game {
     }
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.fillRect(BOARD_R, BY, W - BOARD_R, ROWS * TH);
+  }
+
+  _drawPot(ctx, x, y, pot, t) {
+    // an original clay seed-pot with a leafy lid; glazed gold pots hold Wildseeds
+    const wob = Math.sin(t * 3 + pot.seed) * 0.03;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(wob);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 34, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-22, -4); ctx.quadraticCurveTo(-44, -38, -24, -66); ctx.lineTo(24, -66); ctx.quadraticCurveTo(44, -38, 22, -4); ctx.closePath();
+    const g = ctx.createLinearGradient(-40, 0, 40, 0);
+    if (pot.gold) { g.addColorStop(0, '#b8862a'); g.addColorStop(0.45, '#ffe27a'); g.addColorStop(1, '#a8761a'); }
+    else { g.addColorStop(0, '#8a4a2a'); g.addColorStop(0.45, '#d0804a'); g.addColorStop(1, '#7a3e22'); }
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = '#2a1a14'; ctx.lineWidth = 3; ctx.stroke();
+    // painted band of little sprouts
+    ctx.strokeStyle = pot.gold ? '#fff6c0' : '#f4d6a8'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-34, -30); ctx.lineTo(34, -30); ctx.stroke();
+    for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 12, -30); ctx.quadraticCurveTo(i * 12 + 4, -40, i * 12 + 6, -42); ctx.stroke(); }
+    // rim + leafy lid
+    ctx.beginPath(); ctx.ellipse(0, -66, 27, 7, 0, 0, Math.PI * 2); ctx.fillStyle = pot.gold ? '#e0b84a' : '#a85a32'; ctx.fill(); ctx.stroke();
+    for (const [a, c] of [[-0.6, '#5ab04a'], [0.6, '#6fcf5a'], [0, '#7fd05a']]) {
+      ctx.save(); ctx.translate(0, -70); ctx.rotate(a);
+      ctx.beginPath(); ctx.ellipse(0, -12, 7, 14, 0, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+    if (pot.gold) { ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 4); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-14, -48, 4, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
   }
 
   _drawShots(ctx, t) {
@@ -1340,23 +1475,25 @@ export class Game {
     ctx.fillRect(0, CARD_Y + CARD_H + 6, W, 4);
     drawGlowMote(ctx, 58, 40, t, 26);
     this._text(ctx, String(this.glow), 58, 94, 26, '#ffe9a0', 'center');
+    if (this.potluck && !this.loadout.length) this._text(ctx, 'Tap pots on the right to break them!', CARD_X + 10, CARD_Y + 58, 20, '#fff4c8');
     const cw = this.cardW;
     for (let i = 0; i < this.loadout.length; i++) {
       const k = this.loadout[i];
       const def = GUARDIANS[k];
       const x = CARD_X + i * (cw + CARD_GAP), y = CARD_Y;
-      const ready = this.cooldowns[i] <= 0 && this.glow >= def.cost;
+      const cost = this.costOf(k);
+      const ready = this.cooldowns[i] <= 0 && this.glow >= cost;
       const cg = ctx.createLinearGradient(0, y, 0, y + CARD_H);
       cg.addColorStop(0, this.selected === i ? '#fff7c8' : '#fbf0d6'); cg.addColorStop(1, this.selected === i ? '#ffe27a' : '#e8d6ae');
       ctx.fillStyle = cg;
       ctx.beginPath(); ctx.roundRect(x, y, cw, CARD_H, 10); ctx.fill();
       ctx.save();
       ctx.beginPath(); ctx.roundRect(x, y, cw, CARD_H, 10); ctx.clip();
-      drawGuardian(ctx, k, x + cw / 2, y + 76, Math.min(84, cw * 0.95), t, {});
+      drawGuardian(ctx, k, x + cw / 2, y + 76, Math.min(84, cw * 0.95), t, { hat: this.cosmetics[k] && this.cosmetics[k].hat, skin: this.cosmetics[k] && this.cosmetics[k].skin });
       ctx.restore();
       ctx.fillStyle = 'rgba(40,26,18,0.8)';
       ctx.fillRect(x, y + CARD_H - 24, cw, 24);
-      this._text(ctx, String(def.cost), x + cw / 2, y + CARD_H - 5, 19, '#ffe9a0', 'center');
+      this._text(ctx, this.potluck ? 'FREE' : String(cost), x + cw / 2, y + CARD_H - 5, 19, '#ffe9a0', 'center');
       if (!ready) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x, y, cw, CARD_H);
         if (this.cooldowns[i] > 0) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x, y, cw, CARD_H * (this.cooldowns[i] / def.recharge)); }
@@ -1383,17 +1520,17 @@ export class Game {
     ctx.fillStyle = active ? '#d8ffb0' : this.seeds > 0 ? '#3d6a2a' : '#2a1a10';
     ctx.beginPath(); ctx.roundRect(b.x, b.y + 4, b.w, b.h - 8, 14); ctx.fill();
     ctx.strokeStyle = this.seeds > 0 ? '#a8ff7a' : '#5a4a3a'; ctx.lineWidth = 3; ctx.stroke();
-    for (let i = 0; i < MAX_SEEDS; i++) {
+    for (let i = 0; i < this.maxSeeds; i++) {
       ctx.globalAlpha = i < this.seeds ? 1 : 0.25;
-      drawWildseed(ctx, b.x + 26 + i * ((b.w - 52) / 2), b.y + 40, 14, t + i);
+      drawWildseed(ctx, b.x + 22 + i * ((b.w - 44) / Math.max(1, this.maxSeeds - 1)), b.y + 40, 12, t + i);
     }
     ctx.globalAlpha = 1;
     this._bar(ctx, b.x + 12, b.y + b.h - 26, b.w - 24, this.seedMeter / 100, '#a8ff7a');
     this._text(ctx, active ? 'Pick a guardian!' : 'Wildseeds', b.x + b.w / 2, b.y + b.h - 30, 14, '#fff', 'center');
 
-    const label = this.endless ? `Wave ${this.wave}` : `Wave ${Math.min(this.wave, this.level.waves)}/${this.level.waves}`;
-    this._text(ctx, label, W - 80, CARD_Y + CARD_H + 32, 18, '#fff', 'center');
-    if (!this.endless) this._bar(ctx, W - 140, CARD_Y + CARD_H + 40, 120, this.wave / this.level.waves, '#ffd23a');
+    if (this.potluck) this._text(ctx, `Pots left: ${this.potsLeft}`, W - 90, CARD_Y + CARD_H + 32, 18, '#fff', 'center');
+    else if (this.endless) this._text(ctx, `Wave ${this.wave}`, W - 80, CARD_Y + CARD_H + 32, 18, '#fff', 'center');
+    else this._drawFlagBar(ctx, t);
     if (this.level.challenge && !this.endless) {
       const ch = this.level.challenge;
       const txt = ch.maxPlants ? `★ Plant ≤ ${ch.maxPlants} (${this.stats.planted})` : ch.noLoss ? `★ Lose no guardians${this.stats.lost ? ' ✗' : ''}` : `★ Spend ≤ ${ch.spend} (${this.stats.spent})`;
@@ -1407,6 +1544,36 @@ export class Game {
     ctx.fillStyle = '#3d2816';
     ctx.fillRect(W - 52, CARD_Y + 36, 8, 32);
     ctx.fillRect(W - 38, CARD_Y + 36, 8, 32);
+  }
+
+  _drawFlagBar(ctx, t) {
+    const x = W - 300, y = CARD_Y + CARD_H + 22, w = 280, h = 18;
+    const total = this.level.waves;
+    const prog = Math.min(1, (this.wave - 1 + Math.min(1, Math.max(0, 1 - (this.nextWave - this.time) / 26))) / total);
+    ctx.fillStyle = 'rgba(30,18,10,0.75)';
+    ctx.beginPath(); ctx.roundRect(x - 4, y - 4, w + 8, h + 8, 12); ctx.fill();
+    const g = ctx.createLinearGradient(x + w, 0, x, 0);
+    g.addColorStop(0, '#ff6a8a'); g.addColorStop(1, '#ffd23a');
+    ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 9); ctx.fill();
+    // progress grows from right (where Rotlings come from) to left
+    const pw = w * Math.max(0, prog);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x + w - pw, y, pw, h, 9); ctx.fill();
+    for (let i = 1; i <= total; i++) {
+      const big = i === total || i % 4 === 0;
+      if (!big) continue;
+      const fx = x + w - (i / total) * w;
+      ctx.fillStyle = '#4a2a1a'; ctx.fillRect(fx - 1, y - 14, 3, h + 14);
+      ctx.fillStyle = i <= this.wave ? '#ff6a8a' : '#e8d6ae';
+      ctx.beginPath(); ctx.moveTo(fx + 2, y - 14); ctx.lineTo(fx + 18, y - 9); ctx.lineTo(fx + 2, y - 4); ctx.fill();
+    }
+    // creeping Rotling head marker
+    const hx = x + w - pw;
+    ctx.fillStyle = '#8a6a9c';
+    ctx.beginPath(); ctx.arc(hx, y + h / 2, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#2a1a14'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#f6f0c8'; ctx.beginPath(); ctx.arc(hx - 3, y + h / 2 - 2, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c62f4a'; ctx.beginPath(); ctx.arc(hx - 4, y + h / 2 - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+    this._text(ctx, `Wave ${Math.min(this.wave, total)}/${total}`, x + w / 2, y + h + 22, 15, '#fff', 'center');
   }
 
   _bar(ctx, x, y, w, frac, color) {

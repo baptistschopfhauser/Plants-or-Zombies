@@ -123,10 +123,15 @@ await page.goto(base + 'index.html');
 await page.waitForTimeout(600);
 const shotsDir = out('store/screenshots/x');
 for (const f of fs.readdirSync(path.dirname(shotsDir))) fs.unlinkSync(path.join(path.dirname(shotsDir), f));
+await page.waitForTimeout(600);
 await page.screenshot({ path: out('store/screenshots/1-title.png') });
 await page.click('text=New Adventure');
-await page.waitForTimeout(2500);
-await page.screenshot({ path: out('store/screenshots/2-story.png') });
+await page.waitForTimeout(16500);
+await page.screenshot({ path: out('store/screenshots/2-intro-movie.png') });
+await page.click('.cinema-skip');
+await page.waitForSelector('.skip');
+await page.waitForTimeout(2600);
+await page.screenshot({ path: out('store/screenshots/2b-story.png') });
 await page.click('.skip');
 await page.evaluate(() => {
   const d = window.__bloomguard.data;
@@ -145,6 +150,8 @@ const scenes = [
   [17, '6-orchard-boss', ['glowcap', 'emberroot', 'twinbud', 'bramblemat', 'boulderbud', 'mossmender', 'thornling'], 'cinderhusk'],
   [29, '7-caverns-boss', ['sporelamp', 'lanceleaf', 'emberroot', 'rootsnare', 'boulderbud', 'mossmender', 'prismbud', 'hivebloom'], 'gloomwyrm'],
 ];
+// cosmetics on the field for the gameplay shots
+await page.evaluate(() => { const D = window.__bloomguard.data; D.equipped = { thornling: { hat: 'wizard' }, glowcap: { hat: 'straw' }, hivebloom: { hat: 'party' }, barkwall: { hat: 'acornhelm' }, emberroot: { skin: 'golden' } }; });
 for (const [lvl, name, lo, boss] of scenes) {
   await page.evaluate(({ lvl, lo }) => window.__bloomguard.show('play', lvl, lo), { lvl, lo });
   await page.evaluate(() => {
@@ -162,6 +169,17 @@ for (const [lvl, name, lo, boss] of scenes) {
   await page.waitForTimeout(500);
   await page.screenshot({ path: out(`store/screenshots/${name}.png`) });
 }
+// Pot Luck mini-game
+await page.evaluate(() => window.__bloomguard.show('minigames'));
+await page.click('.mg-card >> nth=0 >> button');
+await page.waitForTimeout(800);
+await page.evaluate(() => { const g = window.__bloomguard.game; g.hint = -1; for (const r of g.activeRows) if (g.tiles[r][4].pot) g.tapTile(r, 4); for (const r of [0, 2, 4]) if (g.loadout.length) g.place(0, r, 2); });
+await page.waitForTimeout(5000);
+await page.screenshot({ path: out('store/screenshots/8-pot-luck.png') });
+// Store
+await page.evaluate(() => { const D = window.__bloomguard.data; D.acorns = 640; D.owned.hats.push('wizard', 'straw', 'party', 'acornhelm'); D.owned.skins.push('golden'); window.__bloomguard.show('store'); });
+await page.waitForTimeout(800);
+await page.screenshot({ path: out('store/screenshots/9-store.png') });
 await browser.close();
 server.close();
 console.log('assets written');

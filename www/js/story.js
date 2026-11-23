@@ -19,12 +19,12 @@ export const STORY = {
   'pre-0': [
     ['wren', 'Grandma Ada\'s greenhouse... it\'s even prettier than she said.'],
     ['moss', 'Ah. You must be Wren. I am Moss. I have kept this garden company for three hundred years.'],
-    ['wren', 'A talking tortoise?! With a garden on his back?'],
+    ['wren', 'A talking tortoise?! With a garden on his back?', '!'],
     ['moss', 'Focus, little sprout. Do you feel that chill? Something has stolen the Hearthseed, the heart of every garden in the land.'],
     ['moss', 'Without it, the blight spreads. Rotlings are already crawling toward our lanterns. Plant guardians, and keep those lanterns lit!'],
   ],
   'post-0': [
-    ['wren', 'They actually stopped! The guardians listened to me!'],
+    ['wren', 'They actually stopped! The guardians listened to me!', '♥'],
     ['moss', 'Guardians listen to gentle hands. Your grandmother had them too.'],
   ],
   'pre-3': [
@@ -33,27 +33,27 @@ export const STORY = {
   ],
   'pre-5': [
     ['grubmother', 'Squelch... such a juicy greenhouse. My children are SO hungry.'],
-    ['wren', 'Your children can eat dirt!'],
+    ['wren', 'Your children can eat dirt!', '💢'],
     ['moss', 'She is the Monarch\'s nursemaid. Beat her and we learn where the Hearthseed went.'],
   ],
   'post-5': [
     ['grubmother', 'Blegh... the Monarch... took the seed... to the Rotheart... you will never...'],
     ['moss', 'The Rotheart. Beyond the marsh, the orchard, the peaks and the caverns. A long road.'],
-    ['wren', 'Then we\'d better start walking. Hop on my backpack, Moss. Wait, can you hop?'],
-    ['moss', 'I can sit. Very well, in fact.'],
+    ['wren', 'Then we\'d better start walking. Hop on my backpack, Moss. Wait, can you hop?', '?'],
+    ['moss', 'I can sit. Very well, in fact.', '♪'],
   ],
   'pre-6': [
     ['wren', 'It\'s so dark out here. No sun, no Glow...'],
     ['moss', 'At night the marsh fireflies carry the Glow. Catch them as they drift past. And try Sporelamps, they love the dark.'],
   ],
   'pre-11': [
-    ['bogmaw', 'BLUUURRGH. Who walks in MY swamp?'],
+    ['bogmaw', 'BLUUURRGH. Who walks in MY swamp?', '💢'],
     ['wren', 'Someone who\'s taking the Hearthseed back!'],
     ['bogmaw', 'Then sink with the rest of the mud!'],
   ],
   'post-11': [
     ['moss', 'Bogmaw sinks back into the bog. Look, a trail of ash to the east.'],
-    ['wren', 'The orchard... it\'s burning!'],
+    ['wren', 'The orchard... it\'s burning!', '!'],
   ],
   'pre-12': [
     ['moss', 'The Ember Orchard. The trees here once fed half the valley.'],
@@ -68,7 +68,7 @@ export const STORY = {
     ['moss', 'Wrap your scarf tight, Wren. We climb.'],
   ],
   'pre-18': [
-    ['wren', 'Brrr! Half the garden is frozen solid!'],
+    ['wren', 'Brrr! Half the garden is frozen solid!', '💧'],
     ['moss', 'Tap the ice to break it. And mind the blizzards, they make even guardians sluggish.'],
   ],
   'pre-23': [
@@ -81,7 +81,7 @@ export const STORY = {
   ],
   'pre-24': [
     ['moss', 'The Crystal Caverns. No sun reaches here, but the crystals are full of Glow.'],
-    ['wren', 'So I mine them for energy? I love it here already.'],
+    ['wren', 'So I mine them for energy? I love it here already.', '♥'],
   ],
   'pre-29': [
     ['gloomwyrm', 'Ssso. The one who has been breaking my mistressss\'s servants.'],
@@ -90,10 +90,10 @@ export const STORY = {
   ],
   'post-29': [
     ['moss', 'Beyond this tunnel lies the Rotheart. Wren... whatever happens, I am proud of you.'],
-    ['wren', 'Don\'t get mushy on me now, Moss. We finish this together.'],
+    ['wren', 'Don\'t get mushy on me now, Moss. We finish this together.', '♥'],
   ],
   'pre-30': [
-    ['wren', 'The ground is... rotting. It\'s spreading across the tiles!'],
+    ['wren', 'The ground is... rotting. It\'s spreading across the tiles!', '!'],
     ['moss', 'The blight hurts any guardian standing in it. Mossmenders can cleanse it. Plant them wisely.'],
   ],
   'pre-35': [
@@ -104,7 +104,7 @@ export const STORY = {
   ],
   'post-35': [
     ['monarch', 'No... the light... it burns...'],
-    ['wren', 'The Hearthseed! It\'s warm, like holding a little sun.'],
+    ['wren', 'The Hearthseed! It\'s warm, like holding a little sun.', '♥'],
     ['moss', 'Plant it back in Ada\'s greenhouse, and the land will heal. You did it, Wren.'],
     ['wren', 'WE did it. Now... how about Endless Bloom? I bet there are still a few Rotlings hiding out there.'],
   ],

@@ -15,6 +15,15 @@ const DEFAULT = () => ({
   achievements: {},
   totals: { kills: 0, planted: 0, overblooms: 0 },
   seenStory: {},
+  seenIntro: false,
+  seenEnding: false,
+  acorns: 50,
+  owned: { hats: [], skins: [] },
+  equipped: {},       // guardian -> { hat, skin }
+  boosts: {},         // boost -> count
+  nursery: { pots: [] },
+  daily: { last: '', streak: 0, best: 0 },
+  mini: { bonk: 0, potluck: {} },
   settings: { sfx: true, music: true, autoCollect: false, story: true },
 });
 
@@ -24,7 +33,15 @@ export function load() {
     if (!raw) return DEFAULT();
     const data = JSON.parse(raw);
     const d = DEFAULT();
-    return { ...d, ...data, settings: { ...d.settings, ...(data.settings || {}) }, totals: { ...d.totals, ...(data.totals || {}) } };
+    return {
+      ...d, ...data,
+      settings: { ...d.settings, ...(data.settings || {}) },
+      totals: { ...d.totals, ...(data.totals || {}) },
+      owned: { ...d.owned, ...(data.owned || {}) },
+      mini: { ...d.mini, ...(data.mini || {}) },
+      daily: { ...d.daily, ...(data.daily || {}) },
+      nursery: { ...d.nursery, ...(data.nursery || {}) },
+    };
   } catch (e) {
     return DEFAULT();
   }

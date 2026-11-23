@@ -27,6 +27,9 @@ await page.waitForTimeout(300);
 
 // Real UI clicks: title -> story -> map -> loadout -> play
 await page.click('text=New Adventure');
+await page.waitForSelector('.cinema-skip');
+await page.waitForTimeout(2500); // let the intro movie render a few scenes
+await page.click('.cinema-skip');
 await page.waitForSelector('.skip');
 await page.click('.skip');
 await page.click('.node >> nth=0');
@@ -140,12 +143,37 @@ const results = await page.evaluate(async () => {
     if (only && !only.includes(i)) { if (LEVELS[i].reward) owned.push(LEVELS[i].reward); continue; }
     const loadout = pri.filter((k) => owned.includes(k)).slice(0, loadoutSlots(i));
     let r = await simulate(i, loadout, makeBot(loadout));
-    if (!r.won && !r.err) { const retry = await simulate(i, loadout, makeBot(loadout)); retry.retried = true; r = retry; }
+    for (let a = 0; a < 2 && !r.won && !r.err; a++) { r = await simulate(i, loadout, makeBot(loadout)); r.retried = a + 1; }
     r.loadout = loadout.length;
     out.push(r);
     if (LEVELS[i].reward) owned.push(LEVELS[i].reward);
   }
   out.push({ idle: true, ...(await simulate(2, ['glowcap', 'thornling'], null)) });
+  // Pot Luck: break pots left-to-right, plant whatever we find right behind the pot line
+  const { POTLUCK, dailyLevel } = await import('./js/data.js');
+  const potBot = (g) => {
+    if (g.loadout.length) {
+      // put each find into the lane that needs it most: enemies present first, then the emptiest lane
+      const need = (r) => g.enemies.filter((e) => e.row === r).length * 10 - [0, 1, 2, 3].filter((c) => g.grid[r][c]).length;
+      const rows = g.activeRows.slice().sort((a, b) => need(b) - need(a));
+      for (const r of rows) for (const c of [3, 2, 1, 0]) if (!g.grid[r][c] && g.plantable(r, c)) { g.place(0, r, c); return; }
+    }
+    if (g.enemies.length > 2 || Math.random() > 0.02) return;
+    for (let c = 4; c < 9; c++) for (const r of g.activeRows) if (g.tiles[r][c].pot) { g.tapTile(r, c); return; }
+  };
+  for (let i = 0; i < POTLUCK.length; i++) {
+    let r = await simulate({ ...POTLUCK[i], mode: 'potluck', potIndex: i }, [], potBot);
+    for (let a = 0; a < 2 && !r.won && !r.err; a++) r = await simulate({ ...POTLUCK[i], mode: 'potluck', potIndex: i }, [], potBot);
+    out.push({ potluck: i, ...r });
+  }
+  // Daily challenges for a week of dates
+  const dlo = ['glowcap', 'thornling', 'twinbud', 'emberroot', 'hivebloom', 'barkwall', 'lanceleaf', 'mossmender'];
+  for (let d = 1; d <= 7; d++) {
+    const lvl = dailyLevel(`2026-12-0${d}`, 36);
+    let r = await simulate(lvl, dlo, makeBot(dlo));
+    for (let a = 0; a < 2 && !r.won && !r.err; a++) r = await simulate(lvl, dlo, makeBot(dlo));
+    out.push({ daily: `${lvl.goal}/${lvl.mods.join('+')}`, ...r });
+  }
   const lo = ['glowcap', 'thornling', 'twinbud', 'emberroot', 'hivebloom', 'barkwall', 'lanceleaf', 'mossmender'];
   out.push({ endless: true, ...(await simulate('endless', lo, makeBot(lo), 1500)) });
   return out;
@@ -186,7 +214,27 @@ if (!(await page.locator('.guide').count())) errors.push('gamepad A-press did no
 // Exercise menus
 await page.evaluate(() => window.__bloomguard.show('guide'));
 await page.click('.guide-list .entry >> nth=0');
-for (const s of ['settings', 'grove', 'trophies', 'title']) await page.evaluate((s) => window.__bloomguard.show(s), s);
+for (const s of ['settings', 'grove', 'trophies', 'store', 'nursery', 'daily', 'minigames', 'extras', 'title']) { await page.evaluate((s) => window.__bloomguard.show(s), s); await page.waitForTimeout(150); }
+// store: buy and equip a hat
+await page.evaluate(() => { window.__bloomguard.data.acorns = 5000; window.__bloomguard.show('store'); });
+await page.click('.items .item >> nth=1 >> button');
+if (!(await page.evaluate(() => Object.values(window.__bloomguard.data.equipped).some((e) => e && e.hat)))) errors.push('store purchase/equip failed');
+// nursery: plant a seed
+await page.evaluate(() => window.__bloomguard.show('nursery'));
+await page.click('.nursery-slot >> nth=0 >> button');
+if (!(await page.evaluate(() => !!window.__bloomguard.data.nursery.pots[0]))) errors.push('nursery planting failed');
+// bonk mini-game runs, then quit
+await page.evaluate(() => window.__bloomguard.show('minigames'));
+await page.click('.mg-card:has-text("Bonk") >> button');
+await page.waitForTimeout(1500);
+await page.click('.cinema-skip');
+// ending movie renders
+await page.evaluate(() => window.__bloomguard.show('extras'));
+await page.evaluate(() => { window.__bloomguard.data.seenEnding = true; window.__bloomguard.show('extras'); });
+await page.click('text=Watch the ending');
+await page.waitForTimeout(3000);
+await page.click('.cinema-skip');
+await page.waitForTimeout(500);
 for (let w = 0; w < 6; w++) await page.evaluate((w) => { window.__bloomguard.mapWorld = w; window.__bloomguard.show('map'); }, w);
 await page.waitForTimeout(200);
 
@@ -196,6 +244,8 @@ await browser.close();
 server.close();
 const fails = [];
 for (const r of results) {
+  if (r.potluck !== undefined) { if (r.err) fails.push(`engine error in Pot Luck ${r.potluck + 1}: ${r.err}`); else if (!r.won) fails.push(`bot lost Pot Luck ${r.potluck + 1}`); continue; }
+  if (r.daily) { if (r.err) fails.push(`engine error in daily ${r.daily}: ${r.err}`); else if (!r.won) fails.push(`bot lost daily ${r.daily}`); continue; }
   if (r.idle) { if (r.won) fails.push('idle player won level 3'); if (r.err) fails.push('engine error (idle): ' + r.err); }
   else if (r.endless) { if (r.err) fails.push('engine error (endless): ' + r.err); else if (r.wave < 8) fails.push(`endless bot only reached wave ${r.wave}`); }
   else if (r.err) fails.push(`engine error on level ${r.level + 1}: ${r.err}`);

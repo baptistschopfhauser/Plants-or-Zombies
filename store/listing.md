@@ -4,7 +4,7 @@
 Bloomguard: Garden Defense
 
 ## Short description (max 80)
-Plant living guardians, beat 6 bosses and recover the stolen Hearthseed!
+Plant guardians, beat 6 bosses, play mini-games and save the Hearthseed!
 
 ## Full description (max 4000)
 The Rot Monarch has stolen the Hearthseed, the heart of every garden, and the blight is spreading.
@@ -25,6 +25,15 @@ Protect fragile sprouts, win on a fixed budget, master a set loadout, and chase 
 
 🐛 20 KINDS OF ROTLINGS
 Shield-bearing Shieldbugs, spitting Spitters, healing Rot Priests, exploding Emberbeasts, freezing Frostcrawlers, armored Crystalbacks and six huge bosses.
+
+🎬 ANIMATED STORY
+An animated intro movie, living story scenes, dramatic boss entrances and a full animated ending with credits.
+
+🎲 MINI-GAMES, DAILY CHALLENGES & MORE
+Smash clay pots in Pot Luck, bonk sneaky Rotlings in Bonk the Blight, take on a new Daily Challenge with special twists every day, and grow guardians in your Zen Nursery.
+
+🎩 ACORN STORE
+Earn Acorns and dress up your guardians with hats and colour skins, or buy handy permanent boosts.
 
 ⭐ GROW YOUR GARDEN
 Earn petals and upgrade your guardians in the Grove, unlock more loadout slots, upgrade guardians in battle up to three stars, collect 16 trophies, and test yourself in the ever-changing Endless Bloom.

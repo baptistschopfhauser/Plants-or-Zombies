@@ -1,8 +1,109 @@
+import { SKINS } from './data.js';
 // Procedural vector art for Bloomguard. Every character, creature and backdrop is an original
 // design drawn in code, so the game ships with no third-party image assets.
 
 const TAU = Math.PI * 2;
 const INK = '#2a1a14';
+void SKINS;
+
+// ---------- fast recolouring ----------
+// Canvas `ctx.filter` is extremely slow (hundreds of ms per frame), so skins, hit flashes and frost
+// are done by transforming every colour as it is set on the context while a character is drawn.
+const PROTO = CanvasRenderingContext2D.prototype;
+const DESC = {};
+for (const k of ['fillStyle', 'strokeStyle', 'shadowColor']) DESC[k] = Object.getOwnPropertyDescriptor(PROTO, k);
+let activeXF = null;
+let xfKey = '';
+let xfPaused = false;
+const xfCache = new Map();
+
+function parseColor(c) {
+  if (c[0] === '#') {
+    let h = c.slice(1);
+    if (h.length === 3) h = h.split('').map((x) => x + x).join('');
+    const n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 1];
+  }
+  const m = /rgba?\(([^)]+)\)/.exec(c);
+  if (!m) return null;
+  const p = m[1].split(',').map((x) => parseFloat(x));
+  return [p[0], p[1], p[2], p[3] === undefined ? 1 : p[3]];
+}
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (mx + mn) / 2;
+  if (mx !== mn) {
+    const d = mx - mn;
+    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  return [h, s, l];
+}
+function hsl2rgb(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  if (s === 0) return [l * 255, l * 255, l * 255];
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+}
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const XF = {
+  hurt: ([h, s, l]) => [h, s * 0.8, l + (1 - l) * 0.55],
+  frozen: ([h, s, l]) => [195, clamp01(s * 0.5 + 0.2), clamp01(l * 0.7 + 0.3)],
+  golden: ([h, s, l]) => (s > 0.12 ? [44 + (h % 20) - 10, clamp01(s * 0.7 + 0.45), clamp01(l * 0.95 + 0.06)] : [h, s, l]),
+  frost: ([h, s, l]) => (s > 0.12 ? [h + 165, s * 0.75, clamp01(l * 1.1)] : [h, s, l]),
+  midnight: ([h, s, l]) => (s > 0.12 ? [h + 215, clamp01(s * 1.2), l * 0.72] : [h, s, l]),
+  sakura: ([h, s, l]) => (s > 0.12 ? [330 + (h % 40) - 20, clamp01(s * 0.9 + 0.1), clamp01(l * 1.05)] : [h, s, l]),
+  ember: ([h, s, l]) => (s > 0.12 ? [12 + (h % 30), clamp01(s * 1.3), l] : [h, s, l]),
+};
+function xfColor(v) {
+  if (!activeXF || xfPaused || typeof v !== 'string') return v;
+  const key = xfKey + v;
+  let out = xfCache.get(key);
+  if (out === undefined) {
+    const c = parseColor(v);
+    if (!c) out = v;
+    else {
+      let hsl = rgb2hsl(c[0], c[1], c[2]);
+      for (const f of activeXF) hsl = f(hsl);
+      const [r, g, b] = hsl2rgb(hsl[0], clamp01(hsl[1]), clamp01(hsl[2]));
+      out = `rgba(${r | 0},${g | 0},${b | 0},${c[3]})`;
+    }
+    if (xfCache.size > 6000) xfCache.clear();
+    xfCache.set(key, out);
+  }
+  return out;
+}
+function wrapGrad(g) { const add = g.addColorStop.bind(g); g.addColorStop = (o, c) => add(o, xfColor(c)); return g; }
+// Draw `fn` with the named colour transforms applied (e.g. ['sakura', 'hurt']).
+export function withXF(ctx, names, fn) {
+  const fns = names.map((n) => XF[n]).filter(Boolean);
+  if (!fns.length) { fn(); return; }
+  const outer = !Object.prototype.hasOwnProperty.call(ctx, 'fillStyle');
+  const prev = activeXF, prevKey = xfKey;
+  if (outer) {
+    for (const k of Object.keys(DESC)) Object.defineProperty(ctx, k, { configurable: true, get() { return DESC[k].get.call(ctx); }, set(v) { DESC[k].set.call(ctx, xfColor(v)); } });
+    ctx.createLinearGradient = (...a) => wrapGrad(PROTO.createLinearGradient.apply(ctx, a));
+    ctx.createRadialGradient = (...a) => wrapGrad(PROTO.createRadialGradient.apply(ctx, a));
+  }
+  activeXF = prev ? prev.concat(fns) : fns;
+  xfKey = (prevKey ? prevKey + '+' : '') + names.join('+') + '|';
+  try { fn(); } finally {
+    activeXF = prev; xfKey = prevKey;
+    if (outer) { for (const k of Object.keys(DESC)) delete ctx[k]; delete ctx.createLinearGradient; delete ctx.createRadialGradient; }
+  }
+}
+// where each guardian's head top is: [dx, dy, head width] as fractions of tile size
+const HEAD = {
+  glowcap: [0, -0.73, 0.5], sporelamp: [0, -0.62, 0.3], thornling: [0.02, -0.66, 0.36], barkwall: [0, -0.77, 0.5],
+  puffball: [0, -0.42, 0.34], frostbell: [0.06, -0.77, 0.24], vinewhip: [0, -0.54, 0.34], mossmender: [0, -0.62, 0.4],
+  rootsnare: [0, -0.36, 0.3], lanceleaf: [0, -0.36, 0.28], stormseed: [0, -0.55, 0.3], pollenpuff: [0, -0.76, 0.32],
+  hivebloom: [0, -0.73, 0.34], emberroot: [0, -0.86, 0.28], bramblemat: [0, -0.2, 0.24], twinbud: [-0.16, -0.66, 0.18],
+  boulderbud: [0, -0.62, 0.44], prismbud: [0, -0.77, 0.3],
+};
 
 // ---------- colour + shape helpers ----------
 function hexToRgb(h) {
@@ -163,6 +264,15 @@ function levelStars(ctx, x, y, level) {
 // ---------- guardians ----------
 // s = tile size in px; (x, y) = bottom-centre of the tile.
 export function drawGuardian(ctx, type, x, y, s, t, o = {}) {
+  const names = [];
+  if (o.skin && XF[o.skin]) names.push(o.skin);
+  if (o.frozen) names.push('frozen');
+  if (o.hurt) names.push('hurt');
+  if (names.length) withXF(ctx, names, () => drawGuardianInner(ctx, type, x, y, s, t, o));
+  else drawGuardianInner(ctx, type, x, y, s, t, o);
+}
+
+function drawGuardianInner(ctx, type, x, y, s, t, o) {
   const seed = o.seed || 0;
   const bob = Math.sin(t * 3 + seed) * s * 0.018;
   const sway = Math.sin(t * 2 + seed) * 0.05;
@@ -170,9 +280,14 @@ export function drawGuardian(ctx, type, x, y, s, t, o = {}) {
   const sq = o.fire ? 1 - o.fire * 0.12 : 1;
   const mood = o.hurtLevel > 0.6 ? 'angry' : 'happy';
   ctx.save();
-  if (o.hurt) ctx.filter = 'brightness(1.7)';
-  if (o.frozen) ctx.filter = 'hue-rotate(160deg) saturate(0.5) brightness(1.2)';
   if (type !== 'bramblemat') shadow(ctx, x, y - s * 0.05, s * 0.3);
+  // storybook squash & stretch: gentle breathing + elastic pop when planted
+  const pop = o.born !== undefined ? Math.min(1, o.born) : 1;
+  const elastic = pop < 1 ? 1 - Math.cos(pop * Math.PI * 2.5) * (1 - pop) * 0.6 : 1;
+  const breathe = Math.sin(t * 2.2 + seed) * 0.022;
+  ctx.translate(x, y);
+  ctx.scale((1 + breathe) * elastic * (pop < 1 ? 0.4 + pop * 0.6 : 1), (1 - breathe) * elastic);
+  ctx.translate(-x, -y);
   if (!['bramblemat', 'barkwall', 'boulderbud', 'puffball'].includes(type)) pot(ctx, x, y, s);
   switch (type) {
     case 'glowcap': {
@@ -515,6 +630,12 @@ export function drawGuardian(ctx, type, x, y, s, t, o = {}) {
       break;
     }
   }
+  if (o.hat && HEAD[type]) {
+    const [dx, dy, hw] = HEAD[type];
+    xfPaused = true;
+    drawHat(ctx, o.hat, x + dx * s, y + dy * s + bob, hw * s, t);
+    xfPaused = false;
+  }
   ctx.restore();
   if (o.level > 1) levelStars(ctx, x, y - s * 0.02, o.level);
   if (o.over > 0) {
@@ -540,6 +661,12 @@ export function drawBee(ctx, x, y, s, t) {
 // ---------- rotlings ----------
 // Rotlings are blobby blight creatures with one big eye. `e` is the live entity.
 export function drawRotling(ctx, e, s, t) {
+  if (e.hurt > 0) withXF(ctx, ['hurt'], () => drawRotlingInner(ctx, e, s, t));
+  else if (e.frozenTime > 0) withXF(ctx, ['frozen'], () => drawRotlingInner(ctx, e, s, t));
+  else drawRotlingInner(ctx, e, s, t);
+}
+
+function drawRotlingInner(ctx, e, s, t) {
   const d = e.def;
   const x = e.x, y = e.y;
   const wob = Math.sin(t * (e.eating ? 14 : 6) + e.seed) * 0.06;
@@ -547,8 +674,6 @@ export function drawRotling(ctx, e, s, t) {
   const r = s * 0.27 * scale;
   ctx.save();
   if (e.dying) { ctx.globalAlpha = Math.max(0, e.dying); }
-  if (e.hurt > 0) ctx.filter = 'brightness(2)';
-  else if (e.frozenTime > 0) ctx.filter = 'hue-rotate(180deg) brightness(1.3)';
   if (e.burrowed) {
     ctx.fillStyle = '#5a3d22';
     ctx.beginPath(); ctx.ellipse(x, y - 4, s * 0.25 * scale, s * 0.08, 0, 0, TAU); ctx.fill();
@@ -970,4 +1095,146 @@ function mulberry(a) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+// ---------- cosmetics ----------
+// (x, y) = top-centre of the head, w = head width.
+export function drawHat(ctx, hat, x, y, w, t = 0) {
+  ctx.save();
+  ctx.lineJoin = 'round';
+  const o = (lw = 0.06) => { ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.5, w * lw); ctx.stroke(); };
+  switch (hat) {
+    case 'straw': {
+      ctx.beginPath(); ctx.ellipse(x, y + w * 0.05, w * 0.85, w * 0.16, 0, 0, TAU);
+      ctx.fillStyle = shadeFill(ctx, x, y, w * 0.8, '#f0cf6a'); ctx.fill(); o();
+      ctx.beginPath(); ctx.ellipse(x, y - w * 0.08, w * 0.45, w * 0.3, 0, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, x, y - w * 0.2, w * 0.4, '#f0cf6a'); ctx.fill(); o();
+      ctx.fillStyle = '#e05a7a'; ctx.fillRect(x - w * 0.45, y - w * 0.1, w * 0.9, w * 0.08);
+      circle(ctx, x + w * 0.3, y - w * 0.1, w * 0.08, '#fff'); circle(ctx, x + w * 0.3, y - w * 0.1, w * 0.035, '#ffd23a');
+      break;
+    }
+    case 'beanie': {
+      ctx.beginPath(); ctx.ellipse(x, y + w * 0.02, w * 0.52, w * 0.42, 0, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, x, y - w * 0.2, w * 0.5, '#e05a5a'); ctx.fill(); o();
+      ctx.beginPath(); ctx.roundRect(x - w * 0.55, y - w * 0.04, w * 1.1, w * 0.16, w * 0.06); ctx.fillStyle = '#f4e7c8'; ctx.fill(); o();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 2;
+      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(x + i * w * 0.18, y - w * 0.05); ctx.lineTo(x + i * w * 0.12, y - w * 0.32); ctx.stroke(); }
+      circle(ctx, x, y - w * 0.45, w * 0.13, '#f4e7c8'); ctx.beginPath(); ctx.arc(x, y - w * 0.45, w * 0.13, 0, TAU); o();
+      break;
+    }
+    case 'flowerclip': {
+      const cx = x + w * 0.32, cy = y + w * 0.02;
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU + 0.3; ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * w * 0.12, cy + Math.sin(a) * w * 0.12, w * 0.1, w * 0.07, a, 0, TAU); ctx.fillStyle = '#ff9ad5'; ctx.fill(); o(0.03); }
+      circle(ctx, cx, cy, w * 0.07, '#ffe14d');
+      break;
+    }
+    case 'party': {
+      ctx.beginPath(); ctx.moveTo(x - w * 0.3, y + w * 0.04); ctx.lineTo(x + w * 0.05, y - w * 0.75); ctx.lineTo(x + w * 0.3, y + w * 0.04); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, x, y - w * 0.3, w * 0.5, '#7fd8ff'); ctx.fill(); o();
+      ctx.save(); ctx.clip();
+      for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#ffd23a' : '#ff7eb6'; ctx.fillRect(x - w * 0.4, y - w * 0.15 - i * w * 0.2, w * 0.8, w * 0.07); }
+      ctx.restore();
+      circle(ctx, x + w * 0.05, y - w * 0.78, w * 0.08, '#ffd23a');
+      break;
+    }
+    case 'crown': {
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI + (i / 6) * Math.PI;
+        ctx.save(); ctx.translate(x + Math.cos(a) * w * 0.45, y + Math.sin(a) * w * 0.12); ctx.rotate(a + Math.PI / 2);
+        ctx.beginPath(); ctx.ellipse(0, -w * 0.12, w * 0.07, w * 0.16, 0, 0, TAU);
+        ctx.fillStyle = i % 2 ? '#5ab04a' : '#7fd05a'; ctx.fill(); o(0.03); ctx.restore();
+      }
+      circle(ctx, x, y - w * 0.2, w * 0.06, '#ff7eb6');
+      break;
+    }
+    case 'tophat': {
+      ctx.beginPath(); ctx.ellipse(x, y + w * 0.03, w * 0.62, w * 0.12, 0, 0, TAU); ctx.fillStyle = '#2a2430'; ctx.fill(); o();
+      ctx.beginPath(); ctx.roundRect(x - w * 0.36, y - w * 0.62, w * 0.72, w * 0.64, w * 0.06);
+      ctx.fillStyle = shadeFill(ctx, x, y - w * 0.4, w * 0.5, '#3a3440'); ctx.fill(); o();
+      ctx.fillStyle = '#c0392b'; ctx.fillRect(x - w * 0.36, y - w * 0.16, w * 0.72, w * 0.1);
+      break;
+    }
+    case 'wizard': {
+      ctx.beginPath(); ctx.ellipse(x, y + w * 0.03, w * 0.7, w * 0.14, 0, 0, TAU); ctx.fillStyle = '#4a3a9a'; ctx.fill(); o();
+      ctx.beginPath(); ctx.moveTo(x - w * 0.4, y); ctx.quadraticCurveTo(x - w * 0.1, y - w * 0.6, x + w * 0.35, y - w * 0.95); ctx.quadraticCurveTo(x + w * 0.1, y - w * 0.45, x + w * 0.4, y); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, x, y - w * 0.4, w * 0.6, '#5a48b8'); ctx.fill(); o();
+      for (const [sx, sy] of [[-0.1, -0.25], [0.12, -0.5], [0.05, -0.15]]) star(ctx, x + sx * w, y + sy * w, w * 0.07, '#ffe14d');
+      break;
+    }
+    case 'headphones': {
+      ctx.strokeStyle = INK; ctx.lineWidth = Math.max(3, w * 0.12);
+      ctx.beginPath(); ctx.arc(x, y + w * 0.35, w * 0.5, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+      ctx.strokeStyle = '#ff7eb6'; ctx.lineWidth = Math.max(2, w * 0.07);
+      ctx.beginPath(); ctx.arc(x, y + w * 0.35, w * 0.5, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+      for (const sd of [-1, 1]) { ctx.beginPath(); ctx.roundRect(x + sd * w * 0.5 - w * 0.11, y + w * 0.12, w * 0.22, w * 0.3, w * 0.08); ctx.fillStyle = '#3a3440'; ctx.fill(); o(); }
+      const k = Math.sin(t * 6) > 0;
+      ctx.fillStyle = '#2a1a14'; ctx.font = `${Math.round(w * 0.3)}px sans-serif`; ctx.fillText(k ? '♪' : '♫', x + w * 0.6, y - w * 0.2);
+      break;
+    }
+    case 'chef': {
+      ctx.beginPath(); ctx.roundRect(x - w * 0.34, y - w * 0.22, w * 0.68, w * 0.26, w * 0.04); ctx.fillStyle = '#fff'; ctx.fill(); o();
+      for (const [cx, r] of [[-0.22, 0.2], [0, 0.26], [0.22, 0.2]]) { ctx.beginPath(); ctx.arc(x + cx * w, y - w * 0.32, r * w, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); o(0.04); }
+      ctx.beginPath(); ctx.roundRect(x - w * 0.34, y - w * 0.22, w * 0.68, w * 0.12, 0); ctx.fillStyle = '#fff'; ctx.fill();
+      break;
+    }
+    case 'acornhelm': {
+      ctx.beginPath(); ctx.ellipse(x, y + w * 0.02, w * 0.56, w * 0.42, 0, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, x, y - w * 0.2, w * 0.5, '#9a6a3c'); ctx.fill(); o();
+      ctx.strokeStyle = 'rgba(60,30,10,0.5)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x, y + w * 0.02, w * (0.15 + i * 0.12), Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+      ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = Math.max(2, w * 0.08);
+      ctx.beginPath(); ctx.moveTo(x, y - w * 0.4); ctx.quadraticCurveTo(x + w * 0.05, y - w * 0.6, x + w * 0.15, y - w * 0.62); ctx.stroke();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+// ---------- storybook ground texture ----------
+// Pre-renders the lawn for a world once (cheap to draw every frame afterwards).
+export function makeBoardTexture(world, cols, rows, tw, th, activeRows) {
+  const c = document.createElement('canvas');
+  c.width = cols * tw; c.height = rows * th;
+  const ctx = c.getContext('2d');
+  const rnd = mulberry(world.id.length * 131 + 7);
+  const [a, b] = world.ground;
+  for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+    const x = col * tw, y = r * th;
+    const active = activeRows.includes(r);
+    const base = active ? ((r + col) % 2 ? a : b) : (r + col) % 2 ? '#8b6b4a' : '#7f6143';
+    const g = ctx.createRadialGradient(x + tw * 0.45, y + th * 0.4, 4, x + tw / 2, y + th / 2, tw * 0.75);
+    g.addColorStop(0, tint(base, 0.08)); g.addColorStop(1, tint(base, -0.1));
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, tw, th);
+    // painterly blotches
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+      ctx.beginPath(); ctx.ellipse(x + rnd() * tw, y + rnd() * th, 8 + rnd() * 18, 5 + rnd() * 10, rnd() * 3, 0, TAU); ctx.fill();
+    }
+    // grass blades / texture strokes
+    const blade = active ? tint(base, -0.28) : 'rgba(60,40,20,0.4)';
+    ctx.strokeStyle = blade; ctx.lineWidth = 1.4;
+    for (let i = 0; i < (active ? 26 : 10); i++) {
+      const bx = x + rnd() * tw, by = y + 8 + rnd() * (th - 8), h = 4 + rnd() * 7;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + 1, by - h * 0.6, bx + (rnd() - 0.5) * 5, by - h); ctx.stroke();
+    }
+    if (active) {
+      ctx.strokeStyle = tint(base, 0.2); ctx.lineWidth = 1;
+      for (let i = 0; i < 8; i++) { const bx = x + rnd() * tw, by = y + rnd() * th; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + 1, by - 5); ctx.stroke(); }
+    }
+    // soft tile edges
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, tw - 2, th - 2);
+  }
+  // row hedge shadows
+  for (let r = 0; r < rows; r++) { ctx.fillStyle = 'rgba(0,0,0,0.07)'; ctx.fillRect(0, r * th + th - 5, cols * tw, 5); }
+  return c;
+}
+
+export function drawClouds(ctx, W, top, t, color = 'rgba(255,255,255,0.8)') {
+  for (let i = 0; i < 5; i++) {
+    const x = ((i * 310 + t * (8 + i * 3)) % (W + 300)) - 150, y = top + (i % 3) * 22;
+    ctx.fillStyle = color;
+    for (const [dx, dy, r] of [[0, 0, 22], [24, -8, 26], [52, 0, 20], [30, 8, 22]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, TAU); ctx.fill(); }
+  }
 }

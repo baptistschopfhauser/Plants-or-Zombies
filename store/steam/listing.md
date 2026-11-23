@@ -17,6 +17,10 @@ Join Wren, a young gardener, and Moss, an ancient tortoise with a garden on his 
 - 20 kinds of Rotlings, including shielded, ranged, healing, exploding, freezing and armored foes
 - The Grove: spend petals to permanently grow your guardians. Upgrade them in battle up to three stars.
 - Endless Bloom mode that travels through every world, plus 16 trophies
+- Animated intro movie, boss entrance cinematics and an animated ending
+- Mini-games: Pot Luck (smash pots to find guardians, or Rotlings!) and Bonk the Blight
+- Daily Challenge with random twists and a streak counter
+- Zen Nursery to grow guardians in real time, and an Acorn Store with hats, colour skins and boosts
 - Full controller support and Steam Deck friendly
 - No microtransactions, no ads, plays offline
 

@@ -185,7 +185,7 @@ export const LEVELS = [
   L(4, { waves: 8, pool: ['grub', 'crystalback', 'swarm'], reward: null, budget: 10, startGlow: 200, challenge: { maxPlants: 20 } }),
   L(4, { waves: 8, pool: ['skitter', 'crystalback', 'moth', 'burrower'], reward: null, budget: 11, challenge: { noLoss: true } }),
   L(4, { goal: 'given', given: ['sporelamp', 'emberroot', 'lanceleaf', 'rootsnare', 'boulderbud', 'mossmender', 'prismbud'], waves: 8, pool: ['grub', 'crystalback', 'shieldbug', 'rotpriest'], reward: null, budget: 11, challenge: { maxPlants: 24 } }),
-  L(4, { waves: 9, pool: ['crystalback', 'spitter', 'spore', 'rotpriest'], reward: null, budget: 12, challenge: { spend: 4000 } }),
+  L(4, { waves: 9, pool: ['crystalback', 'spitter', 'spore', 'rotpriest'], reward: null, budget: 11, challenge: { spend: 4000 } }),
   L(4, { goal: 'sprouts', waves: 9, pool: ['swarm', 'crystalback', 'burrower', 'brute'], reward: null, budget: 13, challenge: { noLoss: true } }),
   L(4, { boss: 'gloomwyrm', waves: 9, pool: ['grub', 'crystalback', 'moth', 'rotpriest', 'brute'], reward: null, budget: 13, challenge: { maxPlants: 26 } }),
   // 6 — The Rotheart
@@ -228,4 +228,89 @@ export const ACHIEVEMENTS = [
   { id: 'planted', name: 'Green Thumb', desc: 'Plant 500 guardians.' },
   { id: 'endless', name: 'Evergreen', desc: 'Survive 20 waves in Endless Bloom.' },
   { id: 'collector', name: 'Full Bloom', desc: 'Unlock every guardian.' },
+];
+
+// ---------- bosses: cinematic title cards ----------
+export const BOSS_TITLES = {
+  grubmother: 'Nursemaid of the Blight',
+  bogmaw: 'Terror of the Moonlit Marsh',
+  cinderhusk: 'Scorcher of the Orchards',
+  rimefang: 'The Frost That Never Melts',
+  gloomwyrm: 'Serpent of the Deep Caverns',
+  monarch: 'Thief of the Hearthseed',
+};
+
+// ---------- Store: Acorns buy cosmetics and permanent boosts ----------
+export const HATS = {
+  straw:      { name: 'Sun Hat', price: 80 },
+  beanie:     { name: 'Cozy Beanie', price: 100 },
+  flowerclip: { name: 'Flower Clip', price: 90 },
+  party:      { name: 'Party Cone', price: 120 },
+  crown:      { name: 'Leaf Crown', price: 220 },
+  tophat:     { name: 'Fancy Top Hat', price: 180 },
+  wizard:     { name: 'Starry Wizard Hat', price: 260 },
+  headphones: { name: 'Headphones', price: 150 },
+  chef:       { name: 'Chef\'s Toque', price: 140 },
+  acornhelm:  { name: 'Acorn Helmet', price: 300 },
+};
+export const SKINS = {
+  golden:   { name: 'Golden', price: 400, filter: 'sepia(0.7) saturate(2.4) hue-rotate(-12deg) brightness(1.12)' },
+  frost:    { name: 'Frosted', price: 220, filter: 'hue-rotate(165deg) saturate(0.75) brightness(1.15)' },
+  midnight: { name: 'Midnight', price: 250, filter: 'hue-rotate(215deg) saturate(1.3) brightness(0.82)' },
+  sakura:   { name: 'Sakura', price: 220, filter: 'hue-rotate(290deg) saturate(1.25) brightness(1.08)' },
+  ember:    { name: 'Ember', price: 250, filter: 'hue-rotate(-38deg) saturate(1.7)' },
+};
+export const BOOSTS = {
+  headstart:  { name: 'Head Start', desc: 'Start every level with +50 Glow.', price: 250, max: 2 },
+  pouch:      { name: 'Seed Pouch', desc: 'Carry one extra Wildseed (max 4, then 5).', price: 400, max: 2 },
+  lanternoil: { name: 'Lantern Oil', desc: 'Start every level with a Wildseed ready.', price: 350, max: 1 },
+  nurserypot: { name: 'Nursery Pots', desc: 'Two more pots in the Zen Nursery.', price: 200, max: 2 },
+  luckyclover:{ name: 'Lucky Clover', desc: '+25% Acorns from everything.', price: 500, max: 1 },
+};
+
+// ---------- Daily challenge ----------
+export const MODIFIERS = {
+  swift:    { name: 'Swift Rotlings', desc: 'Rotlings move 30% faster.' },
+  tough:    { name: 'Tough Hides', desc: 'Rotlings have 40% more health.' },
+  bounty:   { name: 'Wild Bounty', desc: 'Wildseeds charge twice as fast.' },
+  glowrain: { name: 'Glow Shower', desc: 'Glow falls twice as often.' },
+  fragile:  { name: 'Fragile Garden', desc: 'Guardians have 30% less health.' },
+  frenzy:   { name: 'Frenzy', desc: 'Two extra waves.' },
+  thrifty:  { name: 'Thrifty', desc: 'Guardians cost 20% less.' },
+  swarming: { name: 'Swarming', desc: 'Every wave brings an extra gang of Swarmlings.' },
+};
+
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+export function seeded(seed) {
+  let a = seed >>> 0;
+  return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+export function todayKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function dailyLevel(key = todayKey(), unlockedLevel = 36) {
+  const rnd = seeded(hashStr('bloomguard-' + key));
+  const maxWorld = Math.max(0, Math.min(WORLDS.length - 1, Math.floor(unlockedLevel / LEVELS_PER_WORLD)));
+  const world = Math.floor(rnd() * (maxWorld + 1));
+  const foes = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
+  const avail = foes.slice(0, 5 + world * 2);
+  const pool = [];
+  while (pool.length < 4) { const k = avail[Math.floor(rnd() * avail.length)]; if (!pool.includes(k)) pool.push(k); }
+  const goals = ['defend', 'defend', 'sprouts', 'budget'];
+  const goal = goals[Math.floor(rnd() * goals.length)];
+  const modKeys = Object.keys(MODIFIERS);
+  const mods = [];
+  while (mods.length < 2) { const m = modKeys[Math.floor(rnd() * modKeys.length)]; if (!mods.includes(m) && !(goal === 'budget' && m === 'glowrain')) mods.push(m); }
+  return {
+    world, goal, pool, mods, waves: 7 + world, budget: 6 + world * 1.4, daily: key,
+    startGlow: goal === 'budget' ? 1600 + world * 200 : undefined,
+    challenge: [{ noLoss: true }, { maxPlants: 18 + world * 2 }, { spend: 2500 + world * 500 }][Math.floor(rnd() * 3)],
+  };
+}
+
+// ---------- Mini-games ----------
+export const POTLUCK = [
+  { name: 'Pot Luck I', world: 0, pots: 18, rotChance: 0.42, pool: ['grub', 'skitter', 'shellback'], guardians: ['thornling', 'frostbell', 'barkwall', 'vinewhip', 'puffball'], reward: 60 },
+  { name: 'Pot Luck II', world: 2, pots: 22, rotChance: 0.48, pool: ['grub', 'skitter', 'shieldbug', 'emberbeast', 'spore'], guardians: ['thornling', 'twinbud', 'emberroot', 'barkwall', 'rootsnare', 'hivebloom'], reward: 90 },
+  { name: 'Pot Luck III', world: 4, pots: 25, rotChance: 0.45, pool: ['grub', 'shieldbug', 'crystalback', 'rotpriest', 'brute', 'burrower'], guardians: ['lanceleaf', 'emberroot', 'hivebloom', 'boulderbud', 'stormseed', 'mossmender', 'twinbud'], reward: 130 },
 ];

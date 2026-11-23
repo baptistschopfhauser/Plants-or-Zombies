@@ -18,6 +18,14 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
 - **18 guardians** with distinct roles (producers, shooters, walls, traps, melee, snares, homing bees, lobbers, healers, buffs, ground spikes). Each has a unique **Overbloom** super powered by Wildseeds.
 - **20 Rotlings**, including shields, ranged spitters, healers, burrowers, exploders, freezers, armor, and 6 bosses with their own attacks.
 - **Progression:** petals and the Grove (permanent upgrades), loadout slots that grow from 6 to 8, in-battle ★★★ upgrades, 16 trophies, and an Endless mode that travels through every world.
+- **Animation:** an animated, skippable intro movie; living story scenes where characters walk in, react and emote; boss entrance cinematics with title cards; an animated ending with credits.
+- **Modes:**
+  - *Pot Luck* mini-game: smash clay pots to find free guardians, but beware the hidden Rotlings
+  - *Bonk the Blight* reaction mini-game
+  - a seeded *Daily Challenge* with modifiers and a streak counter
+  - a real-time *Zen Nursery*
+- **Acorn economy and Store:** 10 hats, 5 colour skins (rendered with a fast per-colour transform, no canvas filters) and 5 permanent boosts.
+- **Storybook art and UI:** an animated parallax main menu with wooden signboards, painterly pre-rendered lawns, soft key lighting, clouds, squash-and-stretch and pop-in animation, hit knockback, and a wave progress bar with flags.
 - Controller support (Steam Deck / Xbox / PlayStation) with a stick-driven cursor. Keyboard: 1–8 pick cards, W Wildseed, Space speed, P/Esc pause.
 - No ads, no tracking, no network use. Works fully offline.
 
@@ -39,6 +47,8 @@ www/                  the game (plain HTML/CSS/JS ES modules, no build step)
   js/audio.js         WebAudio synth sound effects + generative music
   js/main.js          menus, story, Grove, trophies, progression, back button
   js/story.js         story script
+  js/cinema.js        animated intro + ending movies
+  js/bonk.js          Bonk the Blight mini-game
   privacy.html        privacy policy (hosted by GitHub Pages)
   js/gamepad.js       controller cursor support
 android/              Capacitor Android project (landscape, immersive full-screen)
