@@ -1,8 +1,8 @@
 // Bloomguard — core game engine (simulation, input and rendering on a 1280x720 logical canvas).
 import { COLS, ROWS, GUARDIANS, ROTLINGS, WORLDS, LEVELS, LANTERNS, UPGRADE_MAX, BOSS_TITLES } from './data.js';
 import {
-  drawGuardian, drawRotling, drawLantern, drawGlowMote, drawWildseed, drawFirefly, drawCrystal, drawBee, drawBoulder,
-  drawBackdrop, drawGroundDetails, makeDecor, makeBoardTexture, drawClouds,
+  drawGuardian, drawRotling, drawGuardianFast, drawRotlingFast, drawLantern, drawGlowMote, drawWildseed, drawFirefly, drawCrystal, drawBee, drawBoulder,
+  drawBackdrop, drawGroundDetails, makeDecor, makeBoardTexture, drawClouds, drawGlow,
 } from './art.js';
 import { sfx } from './audio.js';
 import { entryFor } from './sprites.js';
@@ -69,6 +69,11 @@ export class Game {
     this.clouds = [];
     this.bolts = [];
     this.strikes = [];
+    this.rings = [];
+    this.decals = [];
+    this.spot = null;
+    this.glowBump = 0;
+    this.cardShine = [];
     this.lanterns = this.level.lanterns || LANTERNS;
     this.seeds = this.boosts.lanternoil ? 1 : 0;
     this.seedMeter = 0;
@@ -113,6 +118,7 @@ export class Game {
     this.resize();
     this.last = performance.now();
     this.acc = 0;
+    this._buildWarmup();
     this.raf = requestAnimationFrame(this._loop);
     const goalText = { sprouts: 'Protect the sprouts!', budget: 'No Glow income: spend wisely!', given: 'Use the guardians you are given!', potluck: 'Smash the pots! Plant what you find.' }[this.goal];
     const title = this.endless ? 'Endless Bloom' : this.potluck ? this.level.name : this.level.daily ? 'Daily Challenge' : `${this.world.name} ${(this.levelIndex % 6) + 1}`;
@@ -124,6 +130,42 @@ export class Game {
     this.world = WORLDS[i];
     this.decor = makeDecor(this.world, { W, H, BX, BY, BR: BOARD_R, BB: BOARD_B });
     if (this.activeRows) this.boardTex = makeBoardTexture(this.world, COLS, ROWS, TW, TH, this.activeRows);
+  }
+
+  // Prepare character poses in the background (a few ms per frame) so effects never hitch mid-fight.
+  _buildWarmup() {
+    const jobs = [];
+    const types = new Set(this.loadout.concat(this.potluck ? this.level.guardians : []));
+    for (const type of types) {
+      const variants = [{ fire: 0 }, { fire: 1 }, { hurtLevel: 1 }];
+      if (type === 'barkwall' || type === 'boulderbud') variants.push({ hpFrac: 0.5 }, { hpFrac: 0.2 });
+      if (type === 'barkwall') variants.push({ armor: true });
+      if (type === 'puffball') variants.push({ armed: true });
+      for (let f = 0; f < 12; f++) for (const v of variants) jobs.push(['g', type, f * 0.267, v]);
+    }
+    const kinds = new Set((this.level.pool || []).concat(this.level.boss ? [this.level.boss] : []));
+    for (const k of kinds) {
+      const def = ROTLINGS[k];
+      if (!def) continue;
+      const base = { k, def, x: 0, y: 0, seed: 0, shell: def.shell || 0, shield: def.shield || 0, hurt: 0 };
+      const omega = def.speed > 30 ? 13 : 8;
+      for (let f = 0; f < 8; f++) {
+        for (const v of [{}, { eating: true }, { slow: 1 }, { frozenTime: 1 }, { confused: 1 }]) jobs.push(['r', { ...base, ...v }, (f / 8) * (Math.PI * 2) / (v.eating ? 14 : omega)]);
+      }
+    }
+    this._warm = jobs;
+  }
+  _runWarmup(budgetMs) {
+    if (!this._warm || !this._warm.length) return;
+    if (!this._warmCtx) this._warmCtx = document.createElement('canvas').getContext('2d');
+    const wc = this._warmCtx;
+    wc.setTransform(this.ctx.getTransform());
+    const t0 = performance.now();
+    while (this._warm.length && performance.now() - t0 < budgetMs) {
+      const j = this._warm.shift();
+      if (j[0] === 'g') drawGuardianFast(wc, j[1], 0, 0, TW, j[2], j[3]);
+      else drawRotlingFast(wc, j[1], TW, j[2]);
+    }
   }
 
   _layoutCards() {
@@ -403,8 +445,11 @@ export class Game {
     this.stats.overblooms++;
     g.over = 1.6;
     sfx('bloom');
-    this.puff(g.x, g.y - 40, '#a8ff7a', 26, 200);
-    this.floatText(g.x, g.y - 100, 'OVERBLOOM!', '#a8ff7a');
+    this.puff(g.x, g.y - 40, '#a8ff7a', 18, 220);
+    this.spot = { x: g.x, y: g.y - 45, t: 0.7, max: 0.7 };
+    this.rings.push({ x: g.x, y: g.y - 45, t: 0.55, max: 0.55, color: '168,255,122', r: TW * 1.6 });
+    this.rings.push({ x: g.x, y: g.y - 45, t: 0.8, max: 0.8, color: '255,240,160', r: TW * 2.4 });
+    this.texts.push({ x: g.x, y: g.y - 110, text: 'OVERBLOOM!', color: '#d8ffa8', t: 1.3, pop: 1 });
     const rowEnemies = (r) => this.enemies.filter((e) => e.row === r && !e.dead && !e.burrowed && !e.diving);
     switch (g.type) {
       case 'glowcap': for (let i = 0; i < 3; i++) this.spawnMote(g.x + (i - 1) * 30, g.y - 70, 50, true); break;
@@ -439,6 +484,7 @@ export class Game {
   showBanner(text, dur = 2) { this.banner = { text, t: dur, dur }; }
   floatText(x, y, text, color = '#fff') { this.texts.push({ x, y, text, color, t: 1.2 }); }
   puff(x, y, color, n = 8, spd = 120) {
+    if (this.particles.length > 320) n = Math.min(n, 2);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const v = rand(spd * 0.3, spd);
@@ -543,6 +589,7 @@ export class Game {
     e.dead = true;
     this.stats.kills++;
     this.corpses.push({ ...e, dying: 1 });
+    if (!e.def.flying && this.decals.length < 40) this.decals.push({ x: e.x, y: e.y - 6, r: TW * (e.def.boss ? 0.6 : e.def.big ? 0.4 : 0.28), t: 5, color: e.def.color });
     this.seedMeter += (e.def.boss ? 100 : 4 + e.def.cost * 3) * (this.mods.has('bounty') ? 2 : 1);
     while (this.seedMeter >= 100) {
       this.seedMeter -= 100;
@@ -575,6 +622,7 @@ export class Game {
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     this.rt = (this.rt || 0) + dt;
+    this._runWarmup(this.time < 1 ? 10 : 3);
     if (!this.paused && !this.ended) {
       this.acc += dt * this.speed;
       let steps = 0;
@@ -1009,7 +1057,7 @@ export class Game {
       if (m.taken) {
         m.x += (m.tx - m.x) * Math.min(1, dt * 8);
         m.y += (m.ty - m.y) * Math.min(1, dt * 8);
-        if (Math.hypot(m.tx - m.x, m.ty - m.y) < 12) { m.done = true; this.glow += m.value; }
+        if (Math.hypot(m.tx - m.x, m.ty - m.y) < 12) { m.done = true; this.glow += m.value; this.glowBump = 0.25; }
         continue;
       }
       if (m.blown) { m.x += 500 * dt; m.y -= 40 * dt; if (m.x > W + 40) m.done = true; continue; }
@@ -1039,7 +1087,19 @@ export class Game {
     this.particles = this.particles.filter((p) => p.t > 0);
     for (const c of this.corpses) c.dying -= dt * 2.5;
     this.corpses = this.corpses.filter((c) => c.dying > 0);
-    for (const t of this.texts) { t.t -= dt; t.y -= 30 * dt; }
+    for (const t of this.texts) { t.t -= dt; t.y -= (t.pop ? 14 : 30) * dt; }
+    for (const r of this.rings) r.t -= dt;
+    this.rings = this.rings.filter((r) => r.t > 0);
+    for (const d of this.decals) d.t -= dt;
+    this.decals = this.decals.filter((d) => d.t > 0);
+    if (this.spot) { this.spot.t -= dt; if (this.spot.t <= 0) this.spot = null; }
+    this.glowBump = Math.max(0, this.glowBump - dt);
+    for (let i = 0; i < this.cooldowns.length; i++) {
+      const was = this._prevCd ? this._prevCd[i] : 0;
+      if (was > 0 && this.cooldowns[i] <= 0) this.cardShine[i] = 0.5;
+      if (this.cardShine[i] > 0) this.cardShine[i] -= dt;
+    }
+    this._prevCd = this.cooldowns.slice();
     this.texts = this.texts.filter((t) => t.t > 0);
     if (this.banner) { this.banner.t -= dt; if (this.banner.t <= 0) this.banner = null; }
     this.shake = Math.max(0, this.shake - dt);
@@ -1169,7 +1229,16 @@ export class Game {
     const t = this.time;
     ctx.save();
     if (this.shake > 0) ctx.translate(rand(-6, 6) * this.shake, rand(-6, 6) * this.shake);
-    drawBackdrop(ctx, this.world, t, { W, H, BX, BY, BR: BOARD_R, BB: BOARD_B }, this.decor);
+    // static scenery is rendered once per world and reused every frame
+    if (!this._bg || this._bgWorld !== this.worldIndex) {
+      const px = Math.min(2, ctx.getTransform().a || 1);
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(W * px); c.height = Math.ceil((BY + 20) * px);
+      const cx = c.getContext('2d'); cx.scale(px, px);
+      drawBackdrop(cx, this.world, 0, { W, H, BX, BY, BR: BOARD_R, BB: BOARD_B }, this.decor);
+      this._bg = c; this._bgWorld = this.worldIndex;
+    }
+    ctx.drawImage(this._bg, 0, 0, W, BY + 20);
     if (['day', 'ember', 'frost'].includes(this.world.mech)) drawClouds(ctx, W, 18, t, this.world.mech === 'ember' ? 'rgba(255,220,190,0.55)' : 'rgba(255,255,255,0.75)');
     this._drawHome(ctx, t);
     this._drawBoard(ctx, t);
@@ -1178,7 +1247,7 @@ export class Game {
       for (let c = 0; c < COLS; c++) {
         const g = this.grid[r][c];
         if (!g) continue;
-        drawGuardian(ctx, g.type, g.x, g.y, TW, t, {
+        drawGuardianFast(ctx, g.type, g.x, g.y, TW, t, {
           level: g.level, fire: g.fire, armed: g.armed, hurt: g.hurt > 0, seed: g.seed, hpFrac: g.hp / g.maxHp,
           frozen: g.frozen > 0, over: g.over, armor: g.armor, hurtLevel: 1 - g.hp / g.maxHp, born: g.born,
           hat: this.cosmetics[g.type] && this.cosmetics[g.type].hat, skin: this.cosmetics[g.type] && this.cosmetics[g.type].skin,
@@ -1186,11 +1255,11 @@ export class Game {
         if (g.hp < g.maxHp) this._bar(ctx, g.x - 30, g.y - 4, 60, g.hp / g.maxHp, '#6fdc5a');
         if (g.frozen > 0) { ctx.fillStyle = 'rgba(190,240,255,0.35)'; ctx.fillRect(g.x - TW / 2 + 6, g.y - TH + 14, TW - 12, TH - 16); }
       }
-      for (const c of this.corpses) if (c.row === r) drawRotling(ctx, c, TW, t);
+      for (const c of this.corpses) if (c.row === r) drawRotlingFast(ctx, c, TW, t);
       for (const e of this.enemies) {
         if (e.row !== r) continue;
         if (e.diving > 0) { ctx.fillStyle = 'rgba(40,30,60,0.5)'; ctx.beginPath(); ctx.ellipse(e.x, e.y - 4, 60, 14, 0, 0, Math.PI * 2); ctx.fill(); continue; }
-        drawRotling(ctx, e, TW, t);
+        drawRotlingFast(ctx, e, TW, t);
         if (!e.burrowed && (e.hp < e.maxHp || e.def.boss)) {
           const w = e.def.boss ? 150 : 50;
           const sc = e.def.boss ? 1.55 : e.def.big ? 1.25 : e.def.small ? 0.62 : 1;
@@ -1228,6 +1297,19 @@ export class Game {
     }
     ctx.globalAlpha = 1;
 
+    for (const r of this.rings) {
+      const k = 1 - r.t / r.max;
+      ctx.strokeStyle = `rgba(${r.color},${(1 - k) * 0.9})`;
+      ctx.lineWidth = 10 * (1 - k) + 2;
+      ctx.beginPath(); ctx.arc(r.x, r.y, r.r * (0.2 + k * 0.8), 0, Math.PI * 2); ctx.stroke();
+    }
+    if (this.spot) {
+      const k = this.spot.t / this.spot.max;
+      const a = Math.min(1, k * 3) * 0.45;
+      const sg = ctx.createRadialGradient(this.spot.x, this.spot.y, TW * 0.6, this.spot.x, this.spot.y, TW * 3);
+      sg.addColorStop(0, 'rgba(10,20,10,0)'); sg.addColorStop(1, `rgba(10,20,10,${a})`);
+      ctx.fillStyle = sg; ctx.fillRect(0, BY, W, H - BY);
+    }
     // placement ghost
     if ((this.selected >= 0 || this.shovel || this.seedMode) && this.hover) {
       const tile = this._tile(this.hover);
@@ -1245,9 +1327,8 @@ export class Game {
 
     for (const f of this.fireflies) drawFirefly(ctx, f.x, f.y, t + f.seed);
     for (const s of this.pickups) {
-      ctx.save(); ctx.shadowColor = '#8bff5a'; ctx.shadowBlur = 20;
+      drawGlow(ctx, s.x, s.y + Math.sin(t * 3) * 5, 40, 'rgba(139,255,90,0.6)');
       drawWildseed(ctx, s.x, s.y + Math.sin(t * 3) * 5, 18, t);
-      ctx.restore();
       if (s.t > 9 && Math.sin(t * 20) > 0) { ctx.globalAlpha = 0.3; drawWildseed(ctx, s.x, s.y, 18, t); ctx.globalAlpha = 1; }
     }
     for (const m of this.motes) {
@@ -1258,7 +1339,13 @@ export class Game {
     this._drawWeather(ctx, t);
     for (const tx of this.texts) {
       ctx.globalAlpha = clamp(tx.t, 0, 1);
-      this._text(ctx, tx.text, tx.x, tx.y, 22, tx.color, 'center');
+      if (tx.pop) {
+        const age = 1.3 - tx.t;
+        const sc = age < 0.25 ? 0.4 + (age / 0.25) * 0.9 : 1.3 - Math.min(0.3, (age - 0.25) * 1.2);
+        ctx.save(); ctx.translate(tx.x, tx.y); ctx.scale(sc, sc);
+        this._text(ctx, tx.text, 0, 0, 30, tx.color, 'center');
+        ctx.restore();
+      } else this._text(ctx, tx.text, tx.x, tx.y, 22, tx.color, 'center');
     }
     ctx.globalAlpha = 1;
     if (this.empower > 0) { ctx.fillStyle = `rgba(214,168,255,${0.08 + Math.sin(t * 8) * 0.04})`; ctx.fillRect(0, BY, W, H - BY); }
@@ -1417,6 +1504,12 @@ export class Game {
       ctx.fillStyle = '#ff8a4c';
       ctx.beginPath(); ctx.arc(x + (1 - k) * 80, y - (1 - k) * 300, 12, 0, Math.PI * 2); ctx.fill();
     }
+    for (const d of this.decals) {
+      ctx.globalAlpha = Math.min(0.45, d.t / 5);
+      ctx.fillStyle = d.color;
+      ctx.beginPath(); ctx.ellipse(d.x, d.y, d.r, d.r * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.fillRect(BOARD_R, BY, W - BOARD_R, ROWS * TH);
   }
@@ -1457,8 +1550,9 @@ export class Game {
         ctx.fillStyle = '#e9ffd8'; ctx.strokeStyle = '#3a7a2a'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(p.x + 14, p.y); ctx.lineTo(p.x - 8, p.y - 5); ctx.lineTo(p.x - 8, p.y + 5); ctx.closePath(); ctx.fill(); ctx.stroke();
       } else if (p.kind === 'frost') {
-        ctx.fillStyle = '#d9f7ff'; ctx.shadowColor = '#7fd8ff'; ctx.shadowBlur = 12;
-        ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+        drawGlow(ctx, p.x, p.y, 22, 'rgba(127,216,255,0.6)');
+        ctx.fillStyle = '#d9f7ff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill();
       } else if (p.kind === 'pollen') {
         for (let i = 0; i < 4; i++) { ctx.fillStyle = 'rgba(255,230,120,0.8)'; ctx.beginPath(); ctx.arc(p.x - i * 7, p.y + Math.sin(t * 10 + i) * 4, 6 - i, 0, Math.PI * 2); ctx.fill(); }
       } else if (p.kind === 'lance') {
@@ -1466,8 +1560,9 @@ export class Game {
         ctx.fillStyle = p.big ? '#d8ff7a' : '#b5e655'; ctx.strokeStyle = '#3a6a1a'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(p.x + 30 * k, p.y); ctx.quadraticCurveTo(p.x, p.y - 10 * k, p.x - 30 * k, p.y); ctx.quadraticCurveTo(p.x, p.y + 10 * k, p.x + 30 * k, p.y); ctx.fill(); ctx.stroke();
       } else if (p.kind === 'ember') {
-        ctx.fillStyle = '#ff8a4c'; ctx.shadowColor = '#ff5a1a'; ctx.shadowBlur = 16;
-        ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+        drawGlow(ctx, p.x, p.y, 26, 'rgba(255,90,26,0.6)');
+        ctx.fillStyle = '#ff8a4c';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill();
       } else if (p.kind === 'bee' && !(p.delay > 0)) {
         drawBee(ctx, p.x, p.y, 70, t);
       }
@@ -1492,6 +1587,20 @@ export class Game {
 
   _drawHud(ctx, t) {
     const HB = CARD_Y + CARD_H + 10;
+    if (!this._tray) {
+      const px = Math.min(2, ctx.getTransform().a || 1);
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(W * px); c.height = Math.ceil((HB + 12) * px);
+      const cx = c.getContext('2d'); cx.scale(px, px);
+      this._drawTray(cx, HB);
+      this._tray = c;
+    }
+    ctx.drawImage(this._tray, 0, 0, W, HB + 12);
+    this._drawHudFront(ctx, t, HB);
+  }
+
+  _drawTray(ctx, HB) {
+    const t = 0;
     // wooden planter-box tray
     const hudG = ctx.createLinearGradient(0, 0, 0, HB);
     hudG.addColorStop(0, '#8a5a30'); hudG.addColorStop(0.55, '#6b4122'); hudG.addColorStop(1, '#4a2c14');
@@ -1509,6 +1618,9 @@ export class Game {
       ctx.beginPath(); ctx.ellipse(8, 0, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
+  }
+
+  _drawHudFront(ctx, t, HB) {
     // Glow badge
     const gx = 60, gy = 52;
     ctx.fillStyle = '#2a180a';
@@ -1520,7 +1632,7 @@ export class Game {
     drawGlowMote(ctx, gx, gy - 10, t, 24);
     ctx.fillStyle = 'rgba(40,22,8,0.8)';
     ctx.beginPath(); ctx.roundRect(gx - 40, gy + 16, 80, 26, 13); ctx.fill();
-    this._text(ctx, String(this.glow), gx, gy + 37, 22, '#ffe9a0', 'center');
+    { const b = 1 + this.glowBump * 0.8; ctx.save(); ctx.translate(gx, gy + 30); ctx.scale(b, b); this._text(ctx, String(this.glow), 0, 7, 22, '#ffe9a0', 'center'); ctx.restore(); }
     if (this.potluck && !this.loadout.length) this._text(ctx, 'Tap pots on the right to break them!', CARD_X + 10, CARD_Y + 58, 20, '#fff4c8');
 
     const ROLE_COL = { producer: '#f4b324', shooter: '#5cb84a', lobber: '#e8743a', homing: '#e8a03a', melee: '#3f9a6a', wall: '#a8743c', trap: '#a46ad0', instant: '#e0c030', healer: '#3fb8a0', snare: '#9a7a40', ground: '#6a9a3a', buff: '#a888e8' };
@@ -1550,7 +1662,7 @@ export class Game {
       ctx.globalAlpha = 0.18; ctx.fillStyle = '#fff';
       for (let j = 0; j < 5; j++) { ctx.beginPath(); ctx.moveTo(x + cw / 2, y + 30); ctx.arc(x + cw / 2, y + 30, cw, j * 1.26 + t * 0.2, j * 1.26 + 0.4 + t * 0.2); ctx.fill(); }
       ctx.globalAlpha = 1;
-      drawGuardian(ctx, k, x + cw / 2, y + ch - 30, Math.min(78, cw * 0.86), t, { hat: this.cosmetics[k] && this.cosmetics[k].hat, skin: this.cosmetics[k] && this.cosmetics[k].skin, seed: i });
+      drawGuardianFast(ctx, k, x + cw / 2, y + ch - 30, Math.min(78, cw * 0.86), t, { hat: this.cosmetics[k] && this.cosmetics[k].hat, skin: this.cosmetics[k] && this.cosmetics[k].skin, seed: i });
       ctx.restore();
       // cost pill
       ctx.fillStyle = '#3a2210';
@@ -1569,10 +1681,20 @@ export class Game {
           this._text(ctx, String(Math.ceil(this.cooldowns[i])), cx, cy + 9, 24, '#fff', 'center');
         }
       }
+      if (this.cardShine[i] > 0) {
+        const k = 1 - this.cardShine[i] / 0.5;
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.clip();
+        const sx = x - cw + k * cw * 3;
+        const shg = ctx.createLinearGradient(sx - 20, 0, sx + 20, 0);
+        shg.addColorStop(0, 'rgba(255,255,255,0)'); shg.addColorStop(0.5, 'rgba(255,255,255,0.75)'); shg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = shg; ctx.fillRect(x, y, cw, ch);
+        ctx.restore();
+      }
       ctx.strokeStyle = sel ? '#fff27a' : '#3a2210';
       ctx.lineWidth = sel ? 4 : 2.5;
       ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 12); ctx.stroke();
-      if (sel) { ctx.save(); ctx.shadowColor = '#ffe27a'; ctx.shadowBlur = 18; ctx.stroke(); ctx.restore(); }
+      if (sel) drawGlow(ctx, x + cw / 2, y + ch / 2, cw * 0.9, 'rgba(255,226,122,0.35)');
       // hotkey number
       ctx.fillStyle = 'rgba(42,24,10,0.75)';
       ctx.beginPath(); ctx.arc(x + 12, y + 12, 9, 0, Math.PI * 2); ctx.fill();
@@ -1598,7 +1720,7 @@ export class Game {
     ctx.fillStyle = sg;
     ctx.beginPath(); ctx.roundRect(b.x, b.y + 4, b.w, b.h - 10, 16); ctx.fill();
     ctx.strokeStyle = this.seeds > 0 ? '#c8ff8a' : '#5a4a3a'; ctx.lineWidth = 3; ctx.stroke();
-    if (this.seeds > 0 && !active) { ctx.save(); ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 4); ctx.shadowColor = '#a8ff7a'; ctx.shadowBlur = 16; ctx.stroke(); ctx.restore(); }
+    if (this.seeds > 0 && !active) { ctx.save(); ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 4); ctx.strokeStyle = '#d8ffb0'; ctx.lineWidth = 6; ctx.stroke(); ctx.restore(); }
     for (let i = 0; i < this.maxSeeds; i++) {
       ctx.globalAlpha = i < this.seeds ? 1 : 0.22;
       drawWildseed(ctx, b.x + 22 + i * ((b.w - 44) / Math.max(1, this.maxSeeds - 1)), b.y + 36, 12, t + i);

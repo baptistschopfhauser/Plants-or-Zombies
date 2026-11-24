@@ -1207,7 +1207,7 @@ export function drawLantern(ctx, x, y, lit, t) {
   ctx.fillStyle = '#2d2418';
   ctx.beginPath(); ctx.moveTo(x - 15, y - 64); ctx.lineTo(x, y - 76); ctx.lineTo(x + 15, y - 64); ctx.fill();
   ctx.fillStyle = lit ? `rgba(255,210,90,${0.85 + Math.sin(t * 5) * 0.1})` : '#3a3a3a';
-  if (lit) { ctx.shadowColor = '#ffcf5a'; ctx.shadowBlur = 26; }
+  if (lit) drawGlow(ctx, x, y - 52, 46, 'rgba(255,207,90,0.7)');
   ctx.beginPath(); ctx.roundRect(x - 12, y - 64, 24, 24, 5); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.stroke();
@@ -1216,8 +1216,8 @@ export function drawLantern(ctx, x, y, lit, t) {
 }
 
 export function drawGlowMote(ctx, x, y, t, size = 22) {
+  drawGlow(ctx, x, y, size * 1.7, 'rgba(255,226,122,0.65)');
   ctx.save();
-  ctx.shadowColor = '#ffe27a'; ctx.shadowBlur = 20;
   const g = ctx.createRadialGradient(x, y, 2, x, y, size);
   g.addColorStop(0, '#fffbe0'); g.addColorStop(0.5, '#ffd84a'); g.addColorStop(1, 'rgba(255,190,40,0)');
   ctx.fillStyle = g;
@@ -1236,9 +1236,8 @@ export function drawGlowMote(ctx, x, y, t, size = 22) {
 export function drawFirefly(ctx, x, y, t) {
   ctx.save();
   const p = 0.5 + 0.5 * Math.sin(t * 8);
-  ctx.shadowColor = '#c8ff6a'; ctx.shadowBlur = 18 + p * 14;
+  drawGlow(ctx, x, y, 26 + p * 10, 'rgba(200,255,106,0.75)');
   circle(ctx, x, y, 7 + p * 3, `rgba(220,255,140,${0.7 + p * 0.3})`);
-  ctx.shadowBlur = 0;
   circle(ctx, x - 6, y - 2, 4, '#3a3a2a');
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.beginPath(); ctx.ellipse(x - 6, y - 8, 6, 3 * Math.abs(Math.sin(t * 25)) + 1, -0.5, 0, TAU); ctx.fill();
@@ -1248,7 +1247,7 @@ export function drawFirefly(ctx, x, y, t) {
 export function drawCrystal(ctx, x, y, s, t) {
   ctx.save();
   const p = 0.5 + 0.5 * Math.sin(t * 2 + x);
-  ctx.shadowColor = '#d6a8ff'; ctx.shadowBlur = 10 + p * 14;
+  drawGlow(ctx, x, y - s * 0.3, s * (0.45 + p * 0.1), 'rgba(214,168,255,0.55)');
   for (const [dx, h, w, c] of [[-0.14, 0.5, 0.1, '#b9a0ff'], [0.12, 0.42, 0.09, '#e0c8ff'], [0, 0.65, 0.12, '#d6a8ff']]) {
     ctx.beginPath();
     ctx.moveTo(x + dx * s - w * s, y - s * 0.05);
@@ -1259,7 +1258,6 @@ export function drawCrystal(ctx, x, y, s, t) {
     ctx.closePath();
     ctx.fillStyle = shadeFill(ctx, x + dx * s, y - h * s * 0.5, s * 0.3, c);
     ctx.fill();
-    ctx.shadowBlur = 0;
     outline(ctx, s, 0.02);
   }
   ctx.restore();
@@ -1344,14 +1342,12 @@ export function drawBackdrop(ctx, world, t, L, cache) {
     }
   }
   if (id === 'dawn' || id === 'orchard') {
-    ctx.save();
-    ctx.shadowColor = id === 'dawn' ? '#fff3a0' : '#ff8a3a'; ctx.shadowBlur = 40;
+    drawGlow(ctx, W * 0.82, BY * 0.35, 70, id === 'dawn' ? 'rgba(255,243,160,0.8)' : 'rgba(255,138,58,0.7)');
     circle(ctx, W * 0.82, BY * 0.35, 26, id === 'dawn' ? '#fff3a0' : '#ffb36b');
-    ctx.restore();
   }
   if (id === 'marsh') {
-    ctx.save(); ctx.shadowColor = '#e8f0ff'; ctx.shadowBlur = 30;
-    circle(ctx, W * 0.8, BY * 0.38, 22, '#f0f4ff'); ctx.restore();
+    drawGlow(ctx, W * 0.8, BY * 0.38, 60, 'rgba(232,240,255,0.6)');
+    circle(ctx, W * 0.8, BY * 0.38, 22, '#f0f4ff');
     circle(ctx, W * 0.8 + 8, BY * 0.38 - 5, 18, world.sky[0]);
   }
   // distant silhouettes
@@ -1586,4 +1582,129 @@ export function drawClouds(ctx, W, top, t, color = 'rgba(255,255,255,0.8)') {
     ctx.fillStyle = color;
     for (const [dx, dy, r] of [[0, 0, 22], [24, -8, 26], [52, 0, 20], [30, 8, 22]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, TAU); ctx.fill(); }
   }
+}
+
+// ---------- frame cache: draw each character pose once, then blit it ----------
+// Building a character from paths + gradients every frame costs ~0.5 ms each; with dozens on screen
+// (and Overbloom effects on top) that caused lag. Poses are quantised into short animation loops and
+// rendered once into offscreen canvases at the screen's real pixel scale.
+const POSE_CACHE = new Map();
+const POSE_BUDGET = 48 * 1024 * 1024; // bytes of pixel memory kept for cached poses
+let poseBytes = 0;
+export const poseStats = { hits: 0, misses: 0, clears: 0 };
+function poseCanvas(key, w, h, px, draw) {
+  let e = POSE_CACHE.get(key);
+  if (e) {
+    poseStats.hits++;
+    POSE_CACHE.delete(key); POSE_CACHE.set(key, e); // keep recently used poses (LRU)
+    return e.img;
+  }
+  poseStats.misses++;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(w * px); c.height = Math.ceil(h * px);
+  const cx = c.getContext('2d');
+  cx.scale(px, px);
+  draw(cx);
+  e = { img: c, bytes: c.width * c.height * 4 };
+  POSE_CACHE.set(key, e);
+  poseBytes += e.bytes;
+  // GPU-friendly copy for fast drawing on phones
+  if (typeof createImageBitmap === 'function') createImageBitmap(c).then((b) => { if (POSE_CACHE.get(key) === e) e.img = b; }).catch(() => {});
+  while (poseBytes > POSE_BUDGET && POSE_CACHE.size > 1) {
+    const [k0, old] = POSE_CACHE.entries().next().value;
+    POSE_CACHE.delete(k0);
+    poseBytes -= old.bytes;
+    if (old.img.close) old.img.close();
+    poseStats.clears++;
+  }
+  return e.img;
+}
+function pixelScale(ctx) {
+  const m = ctx.getTransform();
+  return Math.min(3, Math.max(0.5, Math.round(Math.hypot(m.a, m.b) * 4) / 4));
+}
+export function clearPoseCache() { POSE_CACHE.clear(); poseBytes = 0; }
+
+const G_FRAMES = 12, G_PERIOD = 3.2;
+export function drawGuardianFast(ctx, type, x, y, s, t, o = {}) {
+  if (entryFor('guardians', type) || o.hat) { drawGuardian(ctx, type, x, y, s, t, o); return; }
+  const seed = o.seed || 0;
+  const frame = Math.floor((((t + seed) % G_PERIOD) + G_PERIOD) % G_PERIOD / G_PERIOD * G_FRAMES);
+  const tq = (frame / G_FRAMES) * G_PERIOD;
+  const fire = (o.fire || 0) > 0.25 ? 1 : 0;
+  const hp = o.hpFrac === undefined ? 3 : o.hpFrac > 0.66 ? 3 : o.hpFrac > 0.33 ? 2 : 1;
+  const mood = (o.hurtLevel || 0) > 0.6 ? 1 : 0;
+  const px = pixelScale(ctx);
+  const W = s * 1.6, H = s * 1.62, ax = W / 2, ay = H * 0.95;
+  const key = `g|${type}|${Math.round(s)}|${px}|${frame}|${fire}|${o.armed ? 1 : 0}|${hp}|${mood}|${o.frozen ? 1 : 0}|${o.armor ? 1 : 0}|${o.skin || ''}`;
+  const c = poseCanvas(key, W, H, px, (cx) => drawGuardian(cx, type, ax, ay, s, tq, {
+    fire, armed: o.armed, hpFrac: hp === 3 ? 1 : hp === 2 ? 0.5 : 0.2, hurtLevel: mood ? 1 : 0,
+    frozen: o.frozen, armor: o.armor, skin: o.skin, seed: 0,
+  }));
+  const pop = o.born !== undefined ? Math.min(1, o.born) : 1;
+  if (pop < 1) {
+    const el = 1 - Math.cos(pop * Math.PI * 2.5) * (1 - pop) * 0.6;
+    ctx.save(); ctx.translate(x, y); ctx.scale(el * (0.4 + pop * 0.6), el); ctx.drawImage(c, -ax, -ay, W, H); ctx.restore();
+  } else {
+    ctx.drawImage(c, x - ax, y - ay, W, H);
+    if (o.hurt) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4; ctx.drawImage(c, x - ax, y - ay, W, H); ctx.restore(); }
+  }
+  if (o.level > 1) levelStars(ctx, x, y - s * 0.02, o.level);
+  if (o.over > 0) {
+    // Overbloom aura: soft gradient ring instead of an expensive canvas blur
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, o.over);
+    const g = ctx.createRadialGradient(x, y - s * 0.35, s * 0.3, x, y - s * 0.35, s * 0.6);
+    g.addColorStop(0, 'rgba(160,255,110,0)'); g.addColorStop(0.75, 'rgba(160,255,110,0.55)'); g.addColorStop(1, 'rgba(160,255,110,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y - s * 0.35, s * 0.6, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+const R_FRAMES = 8;
+export function drawRotlingFast(ctx, e, s, t) {
+  const d = e.def;
+  if (entryFor('rotlings', e.k) || e.burrowed) { drawRotling(ctx, e, s, t); return; }
+  const scale = d.boss ? 1.55 : d.big ? 1.25 : d.small ? 0.62 : 1;
+  // walk / chew loops (matching the speeds used by the procedural animation)
+  const omega = e.eating ? 14 : d.crab ? (d.speed > 30 ? 13 : 8) * 1.4 : d.speed > 30 ? 13 : 8;
+  const period = (Math.PI * 2) / omega;
+  const ph = ((t + e.seed * 0.37) % period + period) % period;
+  const frame = Math.floor((ph / period) * R_FRAMES);
+  const tq = (frame / R_FRAMES) * period;
+  const shellState = e.shell > 0 ? (e.shell < d.shell * 0.5 ? 2 : 1) : 0;
+  const shieldState = e.shield > 0 ? (e.shield < d.shield * 0.5 ? 2 : 1) : 0;
+  const px = pixelScale(ctx);
+  const W = s * 2.05 * scale, H = s * (d.flying ? 1.75 : 1.3) * scale, ax = W * 0.46, ay = H * 0.97;
+  const key = `r|${e.k}|${Math.round(s)}|${px}|${frame}|${e.eating ? 1 : 0}|${e.slow > 0 ? 1 : 0}|${e.frozenTime > 0 ? 1 : 0}|${shellState}|${shieldState}|${e.confused > 0 ? 1 : 0}|${e.snared > 0 ? 1 : 0}|${e.carries ? 1 : 0}|${Math.round((e.spitCharge || 0) * 3)}`;
+  const c = poseCanvas(key, W, H, px, (cx) => drawRotling(cx, {
+    k: e.k, x: ax, y: ay, def: d, seed: 0, eating: e.eating, slow: e.slow > 0 ? 1 : 0, hurt: 0,
+    frozenTime: e.frozenTime > 0 ? 1 : 0, shell: shellState === 1 ? d.shell : shellState === 2 ? d.shell * 0.3 : 0,
+    shield: shieldState === 1 ? d.shield : shieldState === 2 ? d.shield * 0.3 : 0, confused: e.confused > 0 ? 1 : 0,
+    snared: e.snared > 0 ? 1 : 0, carries: e.carries, spitCharge: Math.round((e.spitCharge || 0) * 3) / 3,
+  }, s, tq));
+  if (e.dying !== undefined) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, e.dying)); ctx.drawImage(c, e.x - ax, e.y - ay, W, H); ctx.restore(); return; }
+  ctx.drawImage(c, e.x - ax, e.y - ay, W, H);
+  if (e.hurt > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45; ctx.drawImage(c, e.x - ax, e.y - ay, W, H); ctx.restore(); }
+}
+
+// Cheap soft glow: a cached radial-gradient image instead of canvas shadowBlur (very slow on phones).
+const GLOWS = new Map();
+export function drawGlow(ctx, x, y, r, color, alpha = 1) {
+  const key = color + '|' + Math.round(r / 4);
+  let c = GLOWS.get(key);
+  if (!c) {
+    const R = Math.max(4, Math.round(r / 4) * 4);
+    c = document.createElement('canvas');
+    c.width = c.height = R * 2;
+    const g = c.getContext('2d').createRadialGradient(R, R, 0, R, R, R);
+    g.addColorStop(0, color); g.addColorStop(0.35, color.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.45})`)); g.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+    const cx = c.getContext('2d'); cx.fillStyle = g; cx.fillRect(0, 0, R * 2, R * 2);
+    GLOWS.set(key, c);
+  }
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.drawImage(c, x - r, y - r, r * 2, r * 2);
+  ctx.restore();
 }
