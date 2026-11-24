@@ -30,30 +30,62 @@ async function renderArt(w, h, file, body) {
   await page.goto(base + 'index.html');
   const data = await page.evaluate(async ({ w, h, body }) => {
     const art = await import('./js/art.js');
+    const cinema = await import('./js/cinema.js');
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const ctx = c.getContext('2d');
     // eslint-disable-next-line no-new-func
-    new Function('ctx', 'art', 'w', 'h', body)(ctx, art, w, h);
+    new Function('ctx', 'art', 'cinema', 'w', 'h', body)(ctx, art, cinema, w, h);
     return c.toDataURL('image/png');
   }, { w, h, body });
   fs.writeFileSync(file, Buffer.from(data.split(',')[1], 'base64'));
   await page.close();
 }
 
-const ICON = `
-  const g = ctx.createRadialGradient(w/2, h*0.4, w*0.05, w/2, h/2, w*0.75);
-  g.addColorStop(0, '#b8f08a'); g.addColorStop(0.6, '#4f9e3d'); g.addColorStop(1, '#1f4d1a');
+// App icon: the glowing Hearthseed cradled by two leaves on a forest-green badge (original design).
+const EMBLEM = `
+  const cx = w / 2, cy = h * 0.5;
+  // two big cradling leaves
+  const leafShape = (dir) => {
+    ctx.save(); ctx.translate(cx, cy + h * 0.17); ctx.scale(dir, 1); ctx.rotate(-0.5);
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(w * 0.08, -h * 0.16, w * 0.3, -h * 0.17, w * 0.38, -h * 0.02);
+    ctx.bezierCurveTo(w * 0.28, h * 0.08, w * 0.08, h * 0.07, 0, 0);
+    const g = ctx.createLinearGradient(0, -h * 0.15, 0, h * 0.06);
+    g.addColorStop(0, '#9be86a'); g.addColorStop(1, '#2f8a2a');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(20,70,20,0.45)'; ctx.lineWidth = w * 0.008;
+    ctx.beginPath(); ctx.moveTo(w * 0.02, -h * 0.005); ctx.quadraticCurveTo(w * 0.2, -h * 0.07, w * 0.35, -h * 0.02); ctx.stroke();
+    ctx.restore();
+  };
+  leafShape(-1); leafShape(1);
+  cinema.drawHearthseed(ctx, cx, cy - h * 0.03, w * 0.14, 0.6, 1.1);
+  // sparkles
+  ctx.fillStyle = '#fffbe0';
+  for (const [sx, sy, r] of [[0.24, 0.26, 0.022], [0.78, 0.3, 0.018], [0.7, 0.18, 0.012], [0.3, 0.68, 0.012], [0.74, 0.66, 0.015]]) {
+    ctx.save(); ctx.translate(w * sx, h * sy); ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const rr = i % 2 ? r * 0.35 : r; ctx.lineTo(Math.cos(a) * w * rr, Math.sin(a) * w * rr); }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+`;
+const BADGE = `
+  const g = ctx.createRadialGradient(w / 2, h * 0.45, w * 0.04, w / 2, h / 2, w * 0.75);
+  g.addColorStop(0, '#3f8f4a'); g.addColorStop(0.55, '#1f5a34'); g.addColorStop(1, '#0d2a1a');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = 'rgba(255,230,120,0.25)';
-  for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.arc((i*97)%w, (i*53)%h, w*0.02, 0, 7); ctx.fill(); }
-  art.drawGuardian(ctx, 'thornling', w/2, h*0.86, w*1.05, 0.3, {});
+  const halo = ctx.createRadialGradient(w / 2, h * 0.48, 0, w / 2, h * 0.48, w * 0.42);
+  halo.addColorStop(0, 'rgba(255,220,120,0.55)'); halo.addColorStop(1, 'rgba(255,220,120,0)');
+  ctx.fillStyle = halo; ctx.fillRect(0, 0, w, h);
+  // ring of tiny leaves
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2;
+    ctx.save(); ctx.translate(w / 2 + Math.cos(a) * w * 0.44, h / 2 + Math.sin(a) * h * 0.44); ctx.rotate(a + Math.PI / 2);
+    ctx.fillStyle = i % 2 ? 'rgba(120,200,90,0.55)' : 'rgba(90,170,70,0.55)';
+    ctx.beginPath(); ctx.ellipse(0, 0, w * 0.035, w * 0.016, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
 `;
-const FG = `
-  ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.clearRect(0,0,w,h);
-  art.drawGuardian(ctx, 'thornling', w/2, h*0.80, w*0.85, 0.3, {});
-`;
-const BG = `ctx.fillStyle = '#4f9e3d'; ctx.fillRect(0,0,w,h);`;
+const ICON = BADGE + EMBLEM;
+const FG = `ctx.clearRect(0, 0, w, h); ctx.save(); ctx.translate(w * 0.17, h * 0.17); ctx.scale(0.66, 0.66);` + EMBLEM + `ctx.restore();`;
+const BG = BADGE;
 
 await renderArt(512, 512, out('www/icons/icon-512.png'), ICON);
 await renderArt(192, 192, out('www/icons/icon-192.png'), ICON);

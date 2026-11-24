@@ -691,7 +691,18 @@ const SCREENS = {
     if (!given && pickable.length <= slots) chosen = pickable.slice();
     const pool = lvl ? lvl.pool.concat(lvl.boss ? [lvl.boss] : []) : ['grub', 'skitter', 'shieldbug', 'crystalback', 'brute', 'monarch'];
     const grid = el('div', { class: 'cards' });
-    const info = el('div', { class: 'card-info' }, given ? 'This level gives you a fixed set of guardians.' : 'Tap guardians to add or remove them.');
+    const info = el('div', { class: 'card-info lo-detail' }, given ? 'This level gives you a fixed set of guardians.' : 'Tap a guardian to add it to your team. Tap again to remove it.');
+    const tray = el('div', { class: 'lo-tray' });
+    const showDetail = (k) => {
+      const d = GUARDIANS[k];
+      const role = ROLES[d.kind] || { name: d.kind, color: '#888' };
+      info.innerHTML = '';
+      info.append(portrait(k, 84), el('div', { class: 'lo-detail-text' },
+        el('div', { class: 'lo-detail-head' }, el('strong', {}, d.name), el('span', { class: 'role', style: `background:${role.color}` }, role.name)),
+        el('div', { class: 'stat-pills' }, el('span', {}, `✦ ${d.cost} Glow`), el('span', {}, `⏱ ${d.recharge}s`), el('span', {}, `❤ ${d.hp}`)),
+        el('p', {}, d.desc),
+        d.over ? el('p', { class: 'over' }, '🌱 Overbloom: ' + d.over) : null));
+    };
     const count = el('span', { class: 'count' });
     const start = el('button', { class: 'big go' }, 'Start!');
     function refresh() {
@@ -709,7 +720,7 @@ const SCREENS = {
           disabled: ok ? false : '',
           onclick: () => {
             sfx('click');
-            info.textContent = `${d.name} (${d.cost} Glow): ${d.desc}${d.over ? ' Overbloom: ' + d.over : ''}`;
+            showDetail(k);
             if (given) return;
             if (on) chosen = chosen.filter((x) => x !== k);
             else if (chosen.length < slots) chosen.push(k);
@@ -720,6 +731,14 @@ const SCREENS = {
       }
       count.textContent = `${chosen.length}/${given ? lvl.given.length : slots}`;
       start.disabled = chosen.length === 0;
+      tray.innerHTML = '';
+      const nSlots = given ? lvl.given.length : slots;
+      for (let i = 0; i < nSlots; i++) {
+        const k = chosen[i];
+        tray.append(k
+          ? el('button', { class: 'lo-slot filled', title: GUARDIANS[k].name, onclick: () => { if (given) return; sfx('click'); chosen = chosen.filter((x) => x !== k); refresh(); } }, el('span', { class: 'lo-num' }, String(i + 1)), portrait(k, 54))
+          : el('div', { class: 'lo-slot empty' }, el('span', { class: 'lo-num' }, String(i + 1))));
+      }
     }
     start.addEventListener('click', () => {
       unlockAudio(); sfx('click');
@@ -734,7 +753,7 @@ const SCREENS = {
     ui.append(
       topbar(isObj ? 'Daily Challenge' : lvl ? `${WORLDS[lvl.world].name} ${(pendingLevel % LEVELS_PER_WORLD) + 1}` : 'Endless Bloom', () => show(isObj ? 'daily' : 'map'), count),
       el('div', { class: 'loadout' },
-        el('div', { class: 'col' }, el('h3', {}, given ? 'Your guardians for this level' : 'Choose your guardians'), grid, info),
+        el('div', { class: 'col' }, el('h3', {}, given ? 'Your guardians for this level' : 'Your team'), tray, el('h3', {}, 'Guardians'), grid, info),
         el('div', { class: 'col side' },
           el('div', { class: 'goal' }, el('strong', {}, 'Goal: '), goalLine,
             lvl ? el('div', { class: 'stargoals' }, '★ Win · ★ Keep all lanterns lit · ★ ' + chText) : null,
@@ -766,6 +785,25 @@ const SCREENS = {
   result(res, level, loadout) {
     stopMusic();
     const box = el('div', { class: 'modal' });
+    if (res.won) {
+      // falling petals behind the results window
+      const rain = el('canvas', { width: 1280, height: 720, class: 'petal-rain' });
+      ui.append(rain);
+      const rc = rain.getContext('2d');
+      const t0 = performance.now();
+      const fall = () => {
+        if (!rain.isConnected) return;
+        requestAnimationFrame(fall);
+        const t = (performance.now() - t0) / 1000;
+        rc.clearRect(0, 0, 1280, 720);
+        for (let i = 0; i < 46; i++) {
+          const x = ((i * 137 + t * (30 + (i % 5) * 10)) % 1320) - 20, y = ((i * 89 + t * (60 + (i % 7) * 14)) % 760) - 30;
+          rc.fillStyle = ['#ffb6e6', '#fff2a8', '#b8f08a', '#ffd0a0'][i % 4];
+          rc.beginPath(); rc.ellipse(x, y, 7, 3.5, t * 2 + i, 0, Math.PI * 2); rc.fill();
+        }
+      };
+      fall();
+    }
     const custom = typeof level === 'object';
     if (custom && res.won) {
       box.append(el('h2', {}, res.potluck ? `${res.potluck.name} cleared!` : 'Daily Challenge complete!'));
@@ -979,7 +1017,7 @@ const SCREENS = {
         } }, 'Reset progress'),
         el('p', { class: 'small' }, 'Bloomguard stores progress only on this device. No ads, no tracking, no accounts.'),
         el('p', { class: 'small' }, 'Controller: stick moves the cursor · A select · B back · Start pause · X speed · Y Wildseed'),
-        el('p', { class: 'small' }, 'Version 3.3.0 · All art and sound generated in code.'),
+        el('p', { class: 'small' }, 'Version 3.4.0 · All art and sound generated in code.'),
       ),
     );
     if (desktop) desktop.isFullscreen().then((v) => { const c = document.getElementById('fs-toggle'); if (c) c.checked = v; });
