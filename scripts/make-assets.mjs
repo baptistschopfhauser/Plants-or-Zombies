@@ -57,8 +57,54 @@ const SKY = `
   ctx.fillStyle = hill;
   ctx.beginPath(); ctx.moveTo(0, h * 0.86); ctx.quadraticCurveTo(w * 0.5, h * 0.74, w, h * 0.86); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.fill();
 `;
-const ICON = SKY + `art.drawGuardian(ctx, 'thornling', w / 2, h * 0.88, w * 0.92, 0.3, {});`;
-const FG = `ctx.clearRect(0, 0, w, h); art.drawGuardian(ctx, 'thornling', w / 2, h * 0.8, w * 0.7, 0.3, {});`;
+// Simplified, flat Thornling for the icon: round body, simple spikes, two leaves, big eyes.
+const SIMPLE_THORNLING = (cx, cy, R) => `
+  (() => {
+    const cx = ${cx}, cy = ${cy}, R = ${R};
+    // leaves
+    const leaf = (dir) => {
+      ctx.save(); ctx.translate(cx, cy + R * 0.95); ctx.scale(dir, 1); ctx.rotate(-0.35);
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(R * 0.55, -R * 0.45, R * 1.15, -R * 0.05);
+      ctx.quadraticCurveTo(R * 0.55, R * 0.3, 0, 0);
+      ctx.fillStyle = '#3f9a32'; ctx.fill();
+      ctx.restore();
+    };
+    leaf(-1); leaf(1);
+    // spikes
+    ctx.fillStyle = '#f4ffe0';
+    for (let i = 0; i < 9; i++) {
+      const a = -Math.PI * 0.95 + (i / 8) * Math.PI * 0.9;
+      const bx = cx + Math.cos(a) * R * 0.92, by = cy + Math.sin(a) * R * 0.98;
+      ctx.beginPath();
+      ctx.moveTo(bx - Math.sin(a) * R * 0.11, by + Math.cos(a) * R * 0.11);
+      ctx.lineTo(bx + Math.cos(a) * R * 0.32, by + Math.sin(a) * R * 0.32);
+      ctx.lineTo(bx + Math.sin(a) * R * 0.11, by - Math.cos(a) * R * 0.11);
+      ctx.fill();
+    }
+    // body: flat green with one soft highlight
+    ctx.beginPath(); ctx.ellipse(cx, cy, R * 0.92, R, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#6fcf5a'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx - R * 0.32, cy - R * 0.45, R * 0.3, R * 0.18, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
+    // eyes
+    for (const s of [-1, 1]) {
+      ctx.beginPath(); ctx.ellipse(cx + s * R * 0.3, cy - R * 0.08, R * 0.21, R * 0.25, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + s * R * 0.3 + R * 0.06, cy - R * 0.04, R * 0.12, 0, Math.PI * 2);
+      ctx.fillStyle = '#1d1a2b'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + s * R * 0.3 + R * 0.1, cy - R * 0.1, R * 0.045, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+    }
+    // little round spout + smile
+    ctx.beginPath(); ctx.ellipse(cx + R * 0.52, cy + R * 0.38, R * 0.13, R * 0.11, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2b5a20'; ctx.fill();
+    ctx.strokeStyle = '#2b5a20'; ctx.lineWidth = R * 0.06; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(cx - R * 0.02, cy + R * 0.28, R * 0.17, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+  })();
+`;
+const ICON = SKY + SIMPLE_THORNLING('w * 0.5', 'h * 0.5', 'w * 0.3');
+const FG = `ctx.clearRect(0, 0, w, h);` + SIMPLE_THORNLING('w * 0.5', 'h * 0.5', 'w * 0.2');
 const BG = SKY;
 
 await renderArt(512, 512, out('www/icons/icon-512.png'), ICON);
