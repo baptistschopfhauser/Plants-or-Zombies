@@ -23,6 +23,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle
       - run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
       - run: npm ci
       - run: npx cap sync android
