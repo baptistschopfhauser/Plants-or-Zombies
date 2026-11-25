@@ -498,3 +498,5 @@ button:active { box-shadow: 0 1px 0 #4a2c14, inset 0 2px 0 rgba(255,255,255,0.5)
 .wc-body > * { flex-shrink: 0; }
 .wc-body p { flex: 1 1 auto; flex-shrink: 1; overflow: hidden; }
 .wc-pips .pip { height: 34px; justify-content: center; }
+.horde { width: 100%; height: auto; aspect-ratio: 840 / 300; border-radius: 14px; border: 3px solid #5a3b20; box-shadow: 0 4px 0 #3d2816; margin-bottom: 8px; flex: 0 0 auto; background: #2a1a10; }
+@media (max-height: 520px) { .horde { display: none; } }

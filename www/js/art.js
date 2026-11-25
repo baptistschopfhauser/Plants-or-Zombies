@@ -1436,7 +1436,13 @@ function drawZombie(ctx, e, s, t, air = 0) {
     if (broken) { ctx.strokeStyle = '#3a2410'; ctx.lineWidth = u * 0.06; ctx.beginPath(); ctx.moveTo(-u * 0.25, -u * 0.6); ctx.lineTo(u * 0.05, -u * 0.25); ctx.lineTo(-u * 0.1, u * 0.1); ctx.stroke(); }
     ctx.restore();
   }
-  arm(0, true);
+  if (e.armless) {
+    // torn sleeve stump where the front arm used to be
+    ctx.strokeStyle = tint(pal.cloth, -0.05); ctx.lineWidth = u * 0.36 * thin; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(shX, shY + u * 0.15); ctx.lineTo(shX - u * 0.3, shY + u * 0.32); ctx.stroke();
+    ctx.fillStyle = tint(pal.cloth, -0.3);
+    ctx.beginPath(); ctx.moveTo(shX - u * 0.42, shY + u * 0.2); ctx.lineTo(shX - u * 0.36, shY + u * 0.46); ctx.lineTo(shX - u * 0.28, shY + u * 0.36); ctx.lineTo(shX - u * 0.22, shY + u * 0.5); ctx.lineTo(shX - u * 0.2, shY + u * 0.2); ctx.fill();
+  } else arm(0, true);
   if (e.shell > 0) {
     // bark armour plates on shoulders and back
     const cracked = e.shell < d.shell * 0.5;
@@ -2145,12 +2151,12 @@ export function drawRotlingFast(ctx, e, s, t) {
   const shieldState = e.shield > 0 ? (e.shield < d.shield * 0.5 ? 2 : 1) : 0;
   const px = pixelScale(ctx);
   const W = s * 2.05 * scale, H = s * (d.flying ? 1.75 : husk ? 1.6 : 1.3) * scale, ax = W * 0.46, ay = H * 0.97;
-  const key = `r|${e.k}|${Math.round(s)}|${px}|${frame}|${e.eating ? 1 : 0}|${e.slow > 0 ? 1 : 0}|${e.frozenTime > 0 ? 1 : 0}|${shellState}|${shieldState}|${e.confused > 0 ? 1 : 0}|${e.snared > 0 ? 1 : 0}|${e.carries ? 1 : 0}|${Math.round((e.spitCharge || 0) * 3)}`;
+  const key = `r|${e.k}|${Math.round(s)}|${px}|${frame}|${e.eating ? 1 : 0}|${e.slow > 0 ? 1 : 0}|${e.frozenTime > 0 ? 1 : 0}|${shellState}|${shieldState}|${e.confused > 0 ? 1 : 0}|${e.snared > 0 ? 1 : 0}|${e.carries ? 1 : 0}|${Math.round((e.spitCharge || 0) * 3)}|${e.armless ? 1 : 0}`;
   const c = poseCanvas(key, W, H, px, (cx) => drawRotling(cx, {
     k: e.k, x: ax, y: ay, def: d, seed: 0, eating: e.eating, slow: e.slow > 0 ? 1 : 0, hurt: 0,
     frozenTime: e.frozenTime > 0 ? 1 : 0, shell: shellState === 1 ? d.shell : shellState === 2 ? d.shell * 0.3 : 0,
     shield: shieldState === 1 ? d.shield : shieldState === 2 ? d.shield * 0.3 : 0, confused: e.confused > 0 ? 1 : 0,
-    snared: e.snared > 0 ? 1 : 0, carries: e.carries, spitCharge: Math.round((e.spitCharge || 0) * 3) / 3,
+    snared: e.snared > 0 ? 1 : 0, carries: e.carries, spitCharge: Math.round((e.spitCharge || 0) * 3) / 3, armless: e.armless,
   }, s, tq));
   if (e.dying !== undefined) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, e.dying)); ctx.drawImage(c, e.x - ax, e.y - ay, W, H); ctx.restore(); return; }
   ctx.drawImage(c, e.x - ax, e.y - ay, W, H);

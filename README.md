@@ -6,18 +6,20 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
 ![Gameplay](store/screenshots/6-orchard-boss.png)
 
 ## Features
-- **Story:** Wren and Moss chase the Rot Monarch across 6 worlds to recover the stolen Hearthseed, with illustrated dialogue scenes and a boss at the end of every world.
-- **6 worlds × 6 levels**, each with its own rule:
+- **Story:** Wren and Moss chase the Rot Monarch across 6 worlds to recover the stolen Hearthseed, then follow the blight spores up to the sky and down to its ancient root, with illustrated dialogue scenes and a boss at the end of every world.
+- **8 worlds × 6 levels (48 levels)**, picked from an illustrated world-select screen and played along a winding road map. Each world has its own rule:
   - *Dawn Greenhouse:* sky Glow
   - *Moonlit Marsh:* night, so catch fireflies
   - *Ember Orchard:* ember rain and wind gusts
   - *Frostpeak Terraces:* frozen tiles and blizzards
   - *Crystal Caverns:* mineable crystals
   - *The Rotheart:* spreading blight
+  - *Skyroot Gardens:* cloud gaps you can't plant on, updrafts carrying Glow, wind gusts
+  - *Mushroom Hollow:* tappable glowcaps and slowing spore storms
 - **Level goals:** defend, protect the sprouts, fixed budget, or a set loadout, plus a three-star challenge on every level.
 - **18 guardians** with distinct roles (producers, shooters, walls, traps, melee, snares, homing bees, lobbers, healers, buffs, ground spikes). Each has a unique **Overbloom** super powered by Wildseeds.
-- **21 Rotlings**, including shields, ranged spitters, healers, burrowers, exploders, freezers, armor and the sideways-scuttling Rot Crab, plus 6 bosses with their own attacks.
-- **Progression:** petals and the Grove (permanent upgrades), loadout slots that grow from 6 to 8, in-battle ★★★ upgrades, 16 trophies, and an Endless mode that travels through every world.
+- **The Rotlings:** original undead "husks", gardeners raised by the blight, each with its own gear and ability: bark armour, fence-plank shields, root crawlers, spewers, mushroom sacks, burning, frostbitten and crystal-grown husks, hooded healers, kite riders, toadstool-headed snipers and hulking Mossbrutes, plus rot rats, blightmoths and the Rot Crab. Husks lose an arm when badly hurt. 8 giant bosses have their own attacks.
+- **Progression:** petals and the Grove (permanent upgrades), loadout slots that grow from 6 to 8, in-battle ★★★ upgrades, 18 trophies, and an Endless mode that travels through every world.
 - **Animation:** an animated, skippable intro movie; living story scenes where characters walk in, react and emote; boss entrance cinematics with title cards; an animated ending with credits.
 - **Modes:**
   - *Pot Luck* mini-game: smash clay pots to find free guardians, but beware the hidden Rotlings
@@ -27,7 +29,7 @@ Plant living garden **guardians** on a 5×9 grid, gather **Glow**, and stop the 
 - **Acorn economy and Store:** 5 permanent boosts. (Hats and colour skins exist in the code but are switched off for now: `COSMETICS_ENABLED` in `www/js/data.js`.)
 - **Art:** clean, outline-free cartoon characters with soft shading, big readable faces and squash-and-stretch animation, all drawn in code. Every character, portrait and lawn can be **replaced with your own painted artwork** (see [Using your own art](#using-your-own-art)).
 - **Lexicon:** an animated portrait for every guardian, Rotling and boss, with role badge, stat bars, description, Overbloom, lore and a strategy tip. Undiscovered entries show as silhouettes.
-- **Storybook art and UI:** an animated parallax main menu with wooden signboards, painterly pre-rendered lawns, soft key lighting, clouds, squash-and-stretch and pop-in animation, hit knockback, and a wave progress bar with flags.
+- **Storybook art and UI:** an animated parallax main menu with wooden signboards, a live preview of the horde waiting at your fence before each level, painterly pre-rendered lawns, soft key lighting, clouds, squash-and-stretch and pop-in animation, hit knockback, and a wave progress bar with flags.
 - Controller support (Steam Deck / Xbox / PlayStation) with a stick-driven cursor. Keyboard: 1–8 pick cards, W Wildseed, Space speed, P/Esc pause.
 - No ads, no tracking, no network use. Works fully offline.
 
@@ -70,7 +72,7 @@ ART_GUIDE.md          full guide for adding painted artwork
 ```bash
 npm install
 npm run serve          # play in a browser at http://localhost:8080
-npm test               # headless bot plays all 36 levels, Pot Luck, daily challenges and Endless (needs Playwright)
+npm test               # headless bot plays all 48 levels, Pot Luck, daily challenges and Endless (needs Playwright)
 npm run studio         # developer Art Studio at http://localhost:8090/dev/art-studio.html
 npm run templates      # export size-correct art templates for every character to art-templates/
 ```

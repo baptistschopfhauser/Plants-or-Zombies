@@ -196,11 +196,22 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(500);
 await page.screenshot({ path: out('store/screenshots/3-map.png') });
+await page.evaluate(() => {
+  const d = window.__bloomguard.data;
+  d.unlockedLevel = 40;
+  for (let i = 16; i < 40; i++) d.stars[i] = 1 + (i % 3);
+  window.__bloomguard.mapWorld = 6;
+  window.__bloomguard.show('worlds');
+});
+await page.waitForTimeout(700);
+await page.screenshot({ path: out('store/screenshots/3b-worlds.png') });
 const scenes = [
   [3, '4-greenhouse', ['glowcap', 'thornling', 'frostbell', 'barkwall', 'vinewhip', 'puffball'], null],
   [10, '5-marsh', ['sporelamp', 'pollenpuff', 'hivebloom', 'rootsnare', 'lanceleaf', 'barkwall', 'thornling'], null],
   [17, '6-orchard-boss', ['glowcap', 'emberroot', 'twinbud', 'bramblemat', 'boulderbud', 'mossmender', 'thornling'], 'cinderhusk'],
   [29, '7-caverns-boss', ['sporelamp', 'lanceleaf', 'emberroot', 'rootsnare', 'boulderbud', 'mossmender', 'prismbud', 'hivebloom'], 'gloomwyrm'],
+  [39, '7b-skyroot', ['glowcap', 'lanceleaf', 'hivebloom', 'barkwall', 'stormseed', 'twinbud', 'emberroot', 'prismbud'], null],
+  [47, '7c-hollow-boss', ['sporelamp', 'emberroot', 'lanceleaf', 'barkwall', 'hivebloom', 'mossmender', 'prismbud', 'rootsnare'], 'mycelord'],
 ];
 // cosmetics on the field for the gameplay shots
 await page.evaluate(() => { const D = window.__bloomguard.data; D.equipped = { thornling: { hat: 'wizard' }, glowcap: { hat: 'straw' }, hivebloom: { hat: 'party' }, barkwall: { hat: 'acornhelm' }, emberroot: { skin: 'golden' } }; });
@@ -210,13 +221,21 @@ for (const [lvl, name, lo, boss] of scenes) {
     const g = window.__bloomguard.game;
     g.hint = -1; g.glow = 99999;
     const order = (r, c) => (c === 0 ? 0 : (r * 2 + c) % g.loadout.length);
-    for (const r of g.activeRows) for (let c = 0; c < 5; c++) { g.cooldowns.fill(0); if (!g.grid[r][c]) g.place(order(r, c), r, c); }
+    for (const r of g.activeRows) for (let c = 0; c < 5; c++) { g.cooldowns.fill(0); if (!g.grid[r][c] && g.plantable(r, c)) g.place(order(r, c), r, c); }
     g.cooldowns.fill(0); g.place(1, 2, 2); g.cooldowns.fill(0); g.place(1, 2, 2);
-    g.glow = 425; g.seeds = 2; g.seedMeter = 65; g.nextWave = 0; g.level.waves = 99;
+    g.glow = 425; g.seeds = 2; g.seedMeter = 65; g.nextWave = 0; g.level.waves = 12;
   });
   await page.waitForTimeout(8000);
-  await page.evaluate((boss) => { const g = window.__bloomguard.game; g.nextWave = 0; if (boss) g.spawnEnemy(boss); }, boss);
+  await page.evaluate((boss) => {
+    const g = window.__bloomguard.game; g.nextWave = 0; if (boss) g.spawnEnemy(boss);
+  }, boss);
   await page.waitForTimeout(8000);
+  await page.evaluate(() => {
+    const g = window.__bloomguard.game;
+    const pool = g.level.pool.filter((k) => !['swarm'].includes(k) && !window.__bloomguard.game.level.boss || k !== g.level.boss);
+    g.activeRows.forEach((r, i) => { const e = g.spawnEnemy(pool[i % pool.length], r, 1100 + (i % 3) * 90); });
+  });
+  await page.waitForTimeout(1600);
   await page.evaluate(() => { const g = window.__bloomguard.game; for (const row of g.grid) for (const o of row) if (o && o.type !== 'sprout' && Math.random() < 0.15) { g.overbloom(o); break; } });
   await page.waitForTimeout(500);
   await page.screenshot({ path: out(`store/screenshots/${name}.png`) });

@@ -590,6 +590,10 @@ export class Game {
     }
     e.hp -= amt;
     e.hurt = 0.08;
+    if (!e.armless && e.hp > 0 && e.hp < e.maxHp * 0.5 && !d.boss && !d.flying && !d.crab && e.k !== 'swarm') {
+      e.armless = true; // husks lose their reaching arm when badly hurt
+      this.puff(e.x - 34, e.y - 70, '#8fa77a', 8, 140);
+    }
     if (!e.def.boss && !e.def.big && amt > 15) e.kb = Math.min(6, (e.kb || 0) + 2);
     if (e.hp <= 0) this.kill(e);
   }

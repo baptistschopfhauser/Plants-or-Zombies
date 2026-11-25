@@ -4,7 +4,7 @@ import {
   HATS, SKINS, BOOSTS, MODIFIERS, POTLUCK, dailyLevel, todayKey, LORE, ROLES, BOSS_TITLES, COSMETICS_ENABLED,
 } from './data.js';
 import { Game } from './game.js';
-import { drawGuardian, drawRotling, drawPortrait, drawBackdrop, makeDecor, drawClouds, drawGroundDetails, drawCrystal } from './art.js';
+import { drawGuardian, drawRotling, drawRotlingFast, drawPortrait, drawBackdrop, makeDecor, drawClouds, drawGroundDetails, drawCrystal } from './art.js';
 import { playCinema } from './cinema.js';
 import { playBonk } from './bonk.js';
 import { sfx, startMusic, stopMusic, setAudio, unlockAudio } from './audio.js';
@@ -360,6 +360,44 @@ function drawRoad(ctx, pts, reached, t) {
   ctx.restore();
 }
 
+// The street-side preview before a level: the Rotlings you will face, milling about by the fence.
+function hordePreview(cv, world, pool) {
+  const ctx = cv.getContext('2d');
+  const decor = makeDecor(world, { W: 1280, H: 456, BX: 0, BY: 180, BR: 1280, BB: 456 });
+  const crowd = [];
+  const rnd = (i) => ((Math.sin(i * 91.7 + pool.length * 13.1) * 43758.5) % 1 + 1) % 1;
+  const list = pool.slice();
+  const boss = list.find((k) => ROTLINGS[k].boss);
+  const minions = list.filter((k) => !ROTLINGS[k].boss);
+  const n = Math.min(9, Math.max(4, minions.length * 2));
+  for (let i = 0; i < n; i++) crowd.push({ k: minions[i % minions.length], x: 380 + rnd(i) * 860, y: 250 + rnd(i + 50) * 190, seed: i * 1.7 });
+  if (boss) crowd.push({ k: boss, x: 980, y: 420, seed: 3 });
+  crowd.sort((a, b) => a.y - b.y);
+  const t0 = performance.now();
+  const frame = () => {
+    if (screen !== 'loadout' || !cv.isConnected) return;
+    requestAnimationFrame(frame);
+    const t = (performance.now() - t0) / 1000;
+    ctx.save(); ctx.scale(cv.width / 1280, cv.height / 456);
+    drawBackdrop(ctx, world, t, { W: 1280, H: 456, BY: 180 }, decor);
+    const g = ctx.createLinearGradient(0, 180, 0, 456);
+    g.addColorStop(0, world.ground[0]); g.addColorStop(1, world.ground[1]);
+    ctx.fillStyle = g; ctx.fillRect(0, 176, 1280, 290);
+    drawGroundDetails(ctx, world, null, decor, t);
+    // picket fence on the left: your garden
+    ctx.fillStyle = '#f4e7c8';
+    for (let i = 0; i < 9; i++) { const fy = 200 + i * 30; ctx.beginPath(); ctx.moveTo(250, fy + 40); ctx.lineTo(250, fy); ctx.lineTo(262, fy - 12); ctx.lineTo(274, fy); ctx.lineTo(274, fy + 40); ctx.fill(); }
+    ctx.fillRect(240, 230, 44, 8); ctx.fillRect(240, 430, 44, 8);
+    for (const c of crowd) {
+      const def = ROTLINGS[c.k];
+      const sway = Math.sin(t * 1.3 + c.seed) * 6;
+      drawRotlingFast(ctx, { k: c.k, x: c.x + sway, y: c.y, def, seed: c.seed, eating: false, slow: 0, hurt: 0, frozenTime: 0, shell: def.shell || 0, shield: def.shield || 0, confused: 0, snared: 0, carries: false, spitCharge: 0 }, def.boss ? 150 : 120, t * 0.4);
+    }
+    ctx.restore();
+  };
+  requestAnimationFrame(frame);
+}
+
 function starsInWorld(wi) {
   let n = 0;
   for (let j = 0; j < LEVELS_PER_WORLD; j++) n += data.stars[wi * LEVELS_PER_WORLD + j] || 0;
@@ -439,13 +477,17 @@ function menuScene(cv) {
     drawPortrait(ctx, 'wren', 470 + mx * 44, 600, 170, t);
     drawPortrait(ctx, 'moss', 360 + mx * 44, 612, 150, t + 1);
     // Rotlings peeking from bushes on the right
-    for (const [i, k] of ['grub', 'skitter', 'shieldbug'].entries()) {
-      const peek = Math.max(0, Math.sin(t * 0.8 + i * 2.1));
-      const bx = 1010 + i * 90 + mx * 44, by = 610 + i * 30;
-      drawRotling(ctx, { k, x: bx, y: by + 70 - peek * 60, def: ROTLINGS[k], seed: i, shell: ROTLINGS[k].shell || 0, shield: ROTLINGS[k].shield || 0, hurt: 0 }, 100, t);
-      ctx.fillStyle = '#4f9e3d';
-      for (const [dx, r] of [[-40, 34], [0, 42], [40, 34]]) { ctx.beginPath(); ctx.arc(bx + dx, by + 28, r, Math.PI, 0); ctx.fill(); }
-      ctx.fillStyle = '#5ab04a'; ctx.fillRect(bx - 74, by + 26, 148, 40);
+    for (const [i, k] of ['shieldbug', 'grub', 'puffcap'].entries()) {
+      const peek = Math.max(0, Math.sin(t * 0.7 + i * 2.1));
+      const bx = 930 + i * 130 + mx * 44, by = 676 + (i % 2) * 16;
+      drawRotling(ctx, { k, x: bx, y: by + 70 - peek * 70, def: ROTLINGS[k], seed: i, shell: ROTLINGS[k].shell || 0, shield: ROTLINGS[k].shield || 0, hurt: 0, eating: peek > 0.85 }, 125, t);
+      const bg = ctx.createLinearGradient(0, by - 30, 0, by + 70);
+      bg.addColorStop(0, '#6cc055'); bg.addColorStop(1, '#3f8a34');
+      ctx.fillStyle = bg;
+      for (const [dx, dy, r] of [[-55, 6, 36], [-18, -4, 46], [30, 0, 42], [62, 10, 32]]) { ctx.beginPath(); ctx.arc(bx + dx, by + dy, r, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillRect(bx - 86, by + 4, 178, 80);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      for (const [dx, dy, r] of [[-26, -26, 14], [26, -22, 12]]) { ctx.beginPath(); ctx.arc(bx + dx, by + dy, r, 0, Math.PI * 2); ctx.fill(); }
     }
     // drifting petals
     for (let i = 0; i < 28; i++) {
@@ -870,6 +912,8 @@ const SCREENS = {
       : { defend: 'Keep the lanterns lit.', sprouts: 'Keep the lanterns lit AND protect the sprouts in the first column.', budget: 'No Glow income! You start with plenty. Spend it wisely.', given: 'Win with the guardians provided.' }[lvl.goal];
     const ch = lvl && lvl.challenge;
     const chText = ch ? (ch.maxPlants ? `Plant at most ${ch.maxPlants} guardians` : ch.noLoss ? 'Don\'t lose a single guardian' : `Spend at most ${ch.spend} Glow`) : '';
+    const horde = el('canvas', { width: 840, height: 300, class: 'horde' });
+    hordePreview(horde, lvl ? WORLDS[lvl.world] : WORLDS[5], pool);
     ui.append(
       topbar(isObj ? 'Daily Challenge' : lvl ? `${WORLDS[lvl.world].name} ${(pendingLevel % LEVELS_PER_WORLD) + 1}` : 'Endless Bloom', () => show(isObj ? 'daily' : 'map'), count),
       el('div', { class: 'loadout' },
@@ -880,6 +924,7 @@ const SCREENS = {
             lvl ? el('div', { class: 'rule' }, WORLDS[lvl.world].rule) : null,
             lvl && lvl.mods ? el('div', { class: 'stargoals' }, 'Twists: ' + lvl.mods.map((m) => MODIFIERS[m].name).join(' · ')) : null),
           el('h3', {}, 'Rotlings ahead'),
+          horde,
           el('div', { class: 'enemies' }, pool.map((k) => el('div', { class: `enemy ${ROTLINGS[k].boss ? 'boss' : ''}`, title: ENEMY_INFO[k] }, portrait(k, 56, true), el('span', {}, ROTLINGS[k].name)))),
           start,
         ),
@@ -1137,7 +1182,7 @@ const SCREENS = {
         } }, 'Reset progress'),
         el('p', { class: 'small' }, 'Bloomguard stores progress only on this device. No ads, no tracking, no accounts.'),
         el('p', { class: 'small' }, 'Controller: stick moves the cursor · A select · B back · Start pause · X speed · Y Wildseed'),
-        el('p', { class: 'small' }, 'Version 3.5.2 · All art and sound generated in code.'),
+        el('p', { class: 'small' }, 'Version 3.6.0 · All art and sound generated in code.'),
       ),
     );
     if (desktop) desktop.isFullscreen().then((v) => { const c = document.getElementById('fs-toggle'); if (c) c.checked = v; });
