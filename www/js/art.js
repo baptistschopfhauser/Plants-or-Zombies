@@ -878,6 +878,8 @@ function drawRotlingInner(ctx, e, s, t) {
     return;
   }
   if (d.crab) { drawRotCrab(ctx, e, s, t, x, y, r, walk, chew); ctx.restore(); return; }
+  if (HUSK[e.k] && !d.flying) { drawZombie(ctx, e, s, t); ctx.restore(); return; }
+  if (e.k === 'swarm') { drawRotRat(ctx, e, s, t); ctx.restore(); return; }
   const flyY = d.flying ? -s * 0.38 + Math.sin(t * 4 + e.seed) * 7 : 0;
   const hop = e.confused > 0 ? Math.abs(Math.sin(t * 10)) * 7 : 0;
   shadow(ctx, x, y - s * 0.04, r * (d.flying ? 0.7 : 1.25));
@@ -1106,6 +1108,260 @@ function drawRotlingInner(ctx, e, s, t) {
   if (e.confused > 0) for (let i = 0; i < 3; i++) { const a = t * 5 + i * 2.1; star(ctx, cx + Math.cos(a) * r * 0.7, bodyT - r * 0.25 + Math.sin(a) * r * 0.15, Math.max(4, r * 0.15), '#fff1a8'); }
   ctx.restore();
 }
+
+// ---------- Blight husks: original undead gardeners and creatures risen from the rot ----------
+const HUSK = {
+  grub:        { skin: '#8fa77a', cloth: '#5a6fa8', cloth2: '#41548a', hair: '#4f6b34', eye: '#ffd23a' },
+  skitter:     { skin: '#a3a37a', cloth: '#a8503f', cloth2: '#7a3428', hair: '#6b5a2a', eye: '#ff8a3a', lean: 0.32, thin: 0.85 },
+  shellback:   { skin: '#8a9a72', cloth: '#6a5a3a', cloth2: '#4a3e26', hair: '#4f6b34', eye: '#ffd23a' },
+  shieldbug:   { skin: '#94a07c', cloth: '#7a6aa0', cloth2: '#584a7a', hair: '#5a7a3a', eye: '#ffd23a' },
+  burrower:    { skin: '#9a8a68', cloth: '#7a5a3a', cloth2: '#5a3e24', hair: '#6a4a2a', eye: '#ffb03a' },
+  spitter:     { skin: '#9ab07a', cloth: '#a08a4a', cloth2: '#7a6430', hair: '#5a7a3a', eye: '#c8ff5a' },
+  spore:       { skin: '#a08aa8', cloth: '#5a7a6a', cloth2: '#3e5a4c', hair: '#7a5a8a', eye: '#ff7ad8' },
+  emberbeast:  { skin: '#6a4a40', cloth: '#3a2a26', cloth2: '#221816', hair: '#3a2a22', eye: '#ffb03a' },
+  frostcrawler:{ skin: '#a8c4d8', cloth: '#4a6a8a', cloth2: '#34506e', hair: '#e8f6ff', eye: '#7fdcff' },
+  crystalback: { skin: '#9a9ab8', cloth: '#4a4a6a', cloth2: '#34344e', hair: '#5a5a7a', eye: '#d6a8ff' },
+  rotpriest:   { skin: '#8a8a7a', cloth: '#4a2f5c', cloth2: '#2e1c3a', hair: '#3a2a3a', eye: '#a0ff78' },
+  brute:       { skin: '#7a8a62', cloth: '#5a4a32', cloth2: '#3e321e', hair: '#4f6b34', eye: '#ffd23a', big: 1.3 },
+  grubmother:  { skin: '#a08aa8', cloth: '#6a4a7a', cloth2: '#4a3058', hair: '#7a5a8a', eye: '#ff5a7a', big: 1.6, sack: 1 },
+  bogmaw:      { skin: '#6f8a5a', cloth: '#4a5a3a', cloth2: '#2e3a24', hair: '#3e5a2a', eye: '#d8ff5a', big: 1.6, mud: 1 },
+  cinderhusk:  { skin: '#6a4a40', cloth: '#3a2a26', cloth2: '#221816', hair: '#3a2a22', eye: '#ffb03a', big: 1.6, as: 'emberbeast' },
+  rimefang:    { skin: '#a8c4d8', cloth: '#3a5a7a', cloth2: '#28405a', hair: '#e8f6ff', eye: '#7fdcff', big: 1.6, as: 'frostcrawler' },
+  monarch:     { skin: '#8a7a9a', cloth: '#5a2a6a', cloth2: '#3a1a48', hair: '#3a2a3a', eye: '#ff3b6b', big: 1.6, crown: 1 },
+};
+
+function drawRotRat(ctx, e, s, t) {
+  // tiny undead rats that scurry in packs
+  const x = e.x, y = e.y, u = s * 0.18;
+  const run = Math.sin(t * 22 + e.seed);
+  shadow(ctx, x, y - 2, u * 1.4);
+  const body = e.slow > 0 ? '#9ab8d8' : '#8a7a8a';
+  ctx.strokeStyle = '#c89a9a'; ctx.lineWidth = u * 0.18; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x + u * 1.1, y - u * 0.6); ctx.quadraticCurveTo(x + u * 1.9, y - u * (1.2 + run * 0.2), x + u * 2.3, y - u * 0.7); ctx.stroke();
+  for (const [dx, ph] of [[-0.5, 0], [0.5, Math.PI]]) { ctx.strokeStyle = '#5a4a5a'; ctx.lineWidth = u * 0.2; ctx.beginPath(); ctx.moveTo(x + dx * u, y - u * 0.5); ctx.lineTo(x + dx * u + Math.sin(t * 22 + ph) * u * 0.3, y - 2); ctx.stroke(); }
+  blob(ctx, x, y - u * 0.8, u * 1.15, u * 0.7, body, s * 0.6);
+  blob(ctx, x - u * 1.0, y - u * 1.0, u * 0.6, u * 0.5, body, s * 0.6);
+  circle(ctx, x - u * 0.8, y - u * 1.55, u * 0.28, '#c89a9a');
+  circle(ctx, x - u * 1.25, y - u * 1.15, u * 0.17, '#ffd23a');
+  circle(ctx, x - u * 1.28, y - u * 1.15, u * 0.08, '#2a1014');
+  circle(ctx, x - u * 1.58, y - u * 0.95, u * 0.1, '#3a2030');
+  ctx.strokeStyle = 'rgba(40,20,30,0.6)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(x - u * 0.2, y - u * 1.3); ctx.lineTo(x - u * 0.05, y - u * 1.0); ctx.lineTo(x + u * 0.1, y - u * 1.3); ctx.stroke();
+  if (e.carries) drawWildseed(ctx, x + u * 0.3, y - u * 2.2, u * 0.6, t);
+}
+
+function drawZombie(ctx, e, s, t) {
+  const d = e.def;
+  const pal = HUSK[e.k] || HUSK.grub;
+  const big = pal.big || 1;
+  const kind = pal.as || e.k;
+  const u = s * 0.29 * big;
+  const x = e.x, y = e.y;
+  const eat = e.eating;
+  const speed = d.speed > 30 ? 9 : 5.5;
+  const walk = eat ? 0 : t * speed + e.seed;
+  const lean = (pal.lean || 0.12) + (eat ? 0.12 : 0);
+  const thin = pal.thin || 1;
+  const bob = Math.abs(Math.sin(walk)) * u * 0.08;
+  let skin = pal.skin;
+  if (e.slow > 0 && kind !== 'frostcrawler') skin = '#a8c8e8';
+  shadow(ctx, x, y - s * 0.04, u * 1.4);
+
+  const hipX = x + u * 0.1, hipY = y - u * 1.25 - bob;
+  const shX = hipX - u * lean * 2.2, shY = hipY - u * 1.15;
+  const headX = shX - u * 0.22, headY = shY - u * 0.72;
+
+  // legs: stiff shamble
+  const leg = (ph, front) => {
+    const sw = Math.sin(walk + ph);
+    const kx = hipX + sw * u * 0.28, ky = hipY + u * 0.62;
+    const fx = hipX + sw * u * 0.5, fy = y - Math.max(0, -Math.cos(walk + ph)) * u * 0.12;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = tint(pal.cloth2, front ? 0 : -0.3); ctx.lineWidth = u * 0.4 * thin;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy - u * 0.12); ctx.stroke();
+    blob(ctx, fx - u * 0.1, fy - u * 0.08, u * 0.3, u * 0.14, '#3a2e24', s * 0.5);
+  };
+  // arms: classic reaching pose
+  const arm = (ph, front) => {
+    const sw = eat ? Math.sin(t * 12 + ph) * 0.5 : Math.sin(walk + ph) * 0.15;
+    const ex = shX - u * 0.55, ey = shY + u * 0.25 + sw * u * 0.2;
+    const hx = shX - u * 1.25, hy = shY + u * 0.05 + sw * u * 0.45;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = tint(pal.cloth, front ? -0.05 : -0.35); ctx.lineWidth = u * 0.36 * thin;
+    ctx.beginPath(); ctx.moveTo(shX, shY + u * 0.15); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = tint(skin, front ? 0 : -0.25); ctx.lineWidth = u * 0.26 * thin;
+    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
+    blob(ctx, hx, hy, u * 0.2, u * 0.17, tint(skin, front ? 0 : -0.2), s * 0.5);
+    ctx.strokeStyle = tint(skin, -0.4); ctx.lineWidth = Math.max(1.2, u * 0.06);
+    for (let f = -1; f <= 1; f++) { ctx.beginPath(); ctx.moveTo(hx - u * 0.12, hy + f * u * 0.07); ctx.lineTo(hx - u * 0.28, hy + f * u * 0.1); ctx.stroke(); }
+  };
+
+  leg(Math.PI, false);
+  arm(Math.PI, false);
+  if (pal.crown) { // tattered royal cape
+    const fl = Math.sin(t * 3 + e.seed) * u * 0.12;
+    ctx.beginPath(); ctx.moveTo(shX - u * 0.3, shY - u * 0.05); ctx.quadraticCurveTo(shX + u * 1.1, shY + u * 0.4, hipX + u * 1.0 + fl, y - u * 0.15);
+    for (let i = 0; i < 5; i++) ctx.lineTo(hipX + u * (0.8 - i * 0.32) + fl * (1 - i / 5), y - u * (i % 2 ? 0.35 : 0.1));
+    ctx.closePath(); ctx.fillStyle = shadeFill(ctx, hipX + u * 0.4, hipY, u * 1.2, '#8a1e3a'); ctx.fill();
+  }
+  if (pal.sack) { // a sack of squirming grubs on its back
+    blob(ctx, shX + u * 0.75, shY + u * 0.45, u * 0.62, u * 0.75, '#b89ac8', s * 0.7);
+    for (let i = 0; i < 4; i++) circle(ctx, shX + u * (0.55 + (i % 2) * 0.4), shY + u * (0.15 + Math.floor(i / 2) * 0.5) + Math.sin(t * 6 + i) * u * 0.05, u * 0.14, '#e8c8f0');
+  }
+  if (kind === 'spore') {
+    for (const [dx, dy, r, c] of [[0.55, -0.9, 0.42, '#c87ad8'], [0.75, -0.3, 0.3, '#e8a0f0'], [0.35, -1.35, 0.26, '#a85ac0']]) {
+      ctx.beginPath(); ctx.ellipse(hipX + dx * u, hipY + dy * u, r * u, r * u * 0.8, 0, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, hipX + dx * u, hipY + dy * u, r * u, c); ctx.fill();
+      for (let i = 0; i < 3; i++) circle(ctx, hipX + (dx - 0.15 + i * 0.15) * u, hipY + (dy - r * 0.45) * u, u * 0.05, 'rgba(255,255,255,0.7)');
+    }
+  }
+  if (kind === 'crystalback') {
+    for (let i = 0; i < 4; i++) {
+      const cx = shX + u * (0.25 + i * 0.18), cy = shY + u * (0.1 + i * 0.25), h = u * (0.55 + (i % 2) * 0.3);
+      ctx.beginPath(); ctx.moveTo(cx - u * 0.12, cy); ctx.lineTo(cx + u * 0.1, cy - h); ctx.lineTo(cx + u * 0.22, cy); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, cx, cy - h / 2, h, i % 2 ? '#b9c8ff' : '#d6a8ff'); ctx.fill();
+    }
+  }
+  // torso: a ragged gardener's coat over a pale shirt
+  const tw = u * 0.55 * thin;
+  ctx.beginPath();
+  ctx.moveTo(hipX - tw, hipY + u * 0.25);
+  ctx.quadraticCurveTo(hipX - tw * 1.15, hipY - u * 0.55, shX - tw * 0.95, shY - u * 0.02);
+  ctx.quadraticCurveTo(shX, shY - u * 0.22, shX + tw * 0.95, shY + u * 0.04);
+  ctx.quadraticCurveTo(hipX + tw * 1.1, hipY - u * 0.5, hipX + tw, hipY + u * 0.25);
+  // tattered hem
+  for (let i = 4; i >= 0; i--) { const hx = hipX - tw + (i / 4) * tw * 2; ctx.lineTo(hx + tw * 0.25, hipY + u * (i % 2 ? 0.42 : 0.28)); ctx.lineTo(hx, hipY + u * 0.25); }
+  ctx.closePath();
+  ctx.fillStyle = shadeFill(ctx, (hipX + shX) / 2, (hipY + shY) / 2, u * 1.1, pal.cloth); ctx.fill();
+  ctx.save(); ctx.clip();
+  // shirt showing through the open collar
+  ctx.beginPath(); ctx.moveTo(shX - tw * 0.45, shY - u * 0.1); ctx.lineTo(shX - tw * 0.05 - lean * u * 0.4, hipY - u * 0.35); ctx.lineTo(shX + tw * 0.35, shY - u * 0.1); ctx.closePath();
+  ctx.fillStyle = '#e6dcb8'; ctx.fill();
+  ctx.fillStyle = '#9a3a32'; // a frayed tie
+  ctx.beginPath(); ctx.moveTo(shX - u * 0.06, shY + u * 0.02); ctx.lineTo(shX + u * 0.06, shY + u * 0.02); ctx.lineTo(shX + u * 0.02 - lean * u * 0.25, shY + u * 0.55); ctx.lineTo(shX - u * 0.1 - lean * u * 0.25, shY + u * 0.45); ctx.fill();
+  // rope belt, patch, moss
+  ctx.fillStyle = '#b89a5a'; ctx.fillRect(hipX - tw * 1.3, hipY - u * 0.02, tw * 2.6, u * 0.12);
+  ctx.fillStyle = tint(pal.cloth, 0.22); ctx.fillRect(hipX + tw * 0.2, hipY - u * 0.45, u * 0.24, u * 0.22);
+  ctx.strokeStyle = 'rgba(40,25,20,0.5)'; ctx.lineWidth = Math.max(1, u * 0.03); ctx.setLineDash([u * 0.05, u * 0.04]);
+  ctx.strokeRect(hipX + tw * 0.2, hipY - u * 0.45, u * 0.24, u * 0.22); ctx.setLineDash([]);
+  circle(ctx, hipX - tw * 0.6, hipY - u * 0.2, u * 0.16, 'rgba(96,140,62,0.85)');
+  circle(ctx, shX + tw * 0.7, shY + u * 0.12, u * 0.12, 'rgba(96,140,62,0.85)');
+  ctx.restore();
+  if (pal.mud) for (let i = 0; i < 5; i++) { const mx = hipX - u * 0.45 + i * u * 0.22, my = shY + u * (0.15 + (i % 3) * 0.3), ml = u * (0.15 + ((t * 0.6 + i * 0.37) % 1) * 0.25); ctx.fillStyle = 'rgba(74,58,34,0.85)'; ctx.beginPath(); ctx.ellipse(mx, my, u * 0.16, u * 0.1, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(mx - u * 0.06, my); ctx.lineTo(mx, my + ml); ctx.lineTo(mx + u * 0.06, my); ctx.fill(); circle(ctx, mx, my + ml, u * 0.05, 'rgba(74,58,34,0.85)'); }
+  leg(0, true);
+
+  // ---- head ----
+  ctx.save();
+  ctx.translate(headX, headY);
+  ctx.rotate(-0.15 + Math.sin(walk) * 0.05);
+  const hr = u * 0.7;
+  ctx.beginPath(); ctx.ellipse(0, 0, hr * 0.92, hr, 0, 0, TAU);
+  ctx.fillStyle = shadeFill(ctx, 0, 0, hr, skin); ctx.fill();
+  glossy(ctx, 0, 0, hr * 0.8, hr * 0.85);
+  // jaw drop
+  const jaw = eat ? Math.abs(Math.sin(t * 12)) : 0.3;
+  ctx.beginPath(); ctx.ellipse(-hr * 0.35, hr * 0.5, hr * 0.38, hr * (0.12 + jaw * 0.18), 0, 0, TAU);
+  ctx.fillStyle = '#2a1016'; ctx.fill();
+  ctx.fillStyle = '#efe6c4';
+  for (const tx of [-0.55, -0.3, -0.12]) { ctx.beginPath(); ctx.moveTo(hr * tx - hr * 0.06, hr * 0.42); ctx.lineTo(hr * tx, hr * 0.56); ctx.lineTo(hr * tx + hr * 0.06, hr * 0.42); ctx.fill(); }
+  // eyes: one glowing, one sunken
+  drawGlowEye(ctx, -hr * 0.42, -hr * 0.1, hr * 0.3, pal.eye, e.confused > 0 ? t : null);
+  ctx.fillStyle = tint(skin, -0.45);
+  ctx.beginPath(); ctx.ellipse(hr * 0.12, -hr * 0.12, hr * 0.17, hr * 0.13, 0, 0, TAU); ctx.fill();
+  circle(ctx, hr * 0.1, -hr * 0.12, hr * 0.06, tint(pal.eye, -0.2));
+  // brow + stitches
+  ctx.strokeStyle = tint(skin, -0.55); ctx.lineWidth = Math.max(2, hr * 0.12); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-hr * 0.78, -hr * 0.42); ctx.quadraticCurveTo(-hr * 0.4, -hr * 0.58, -hr * 0.08, -hr * 0.4); ctx.stroke();
+  ctx.lineWidth = Math.max(1, hr * 0.05);
+  ctx.beginPath(); ctx.moveTo(hr * 0.35, hr * 0.05); ctx.lineTo(hr * 0.75, hr * 0.25);
+  for (let i = 0; i < 3; i++) { const sx = hr * (0.42 + i * 0.12), sy = hr * (0.08 + i * 0.06); ctx.moveTo(sx - hr * 0.05, sy - hr * 0.08); ctx.lineTo(sx + hr * 0.05, sy + hr * 0.08); }
+  ctx.stroke();
+  // mossy hair / headgear
+  if (pal.crown) {
+    ctx.beginPath(); ctx.moveTo(-hr * 0.75, -hr * 0.6);
+    for (let i = 0; i <= 4; i++) { ctx.lineTo(-hr * 0.75 + i * hr * 0.375, -hr * (i % 2 ? 0.95 : 1.45)); if (i < 4) ctx.lineTo(-hr * 0.75 + (i + 0.5) * hr * 0.375, -hr * 0.95); }
+    ctx.lineTo(hr * 0.75, -hr * 0.6); ctx.closePath();
+    ctx.fillStyle = shadeFill(ctx, 0, -hr, hr, '#e8b83a'); ctx.fill();
+    for (let i = 0; i < 3; i++) circle(ctx, -hr * 0.45 + i * hr * 0.45, -hr * 0.78, hr * 0.1, ['#ff3b6b', '#8af0ff', '#ff3b6b'][i]);
+  } else if (kind === 'rotpriest') {
+    ctx.beginPath(); ctx.moveTo(-hr * 1.15, hr * 0.5); ctx.quadraticCurveTo(-hr * 0.2, -hr * 1.9, hr * 1.1, hr * 0.45); ctx.quadraticCurveTo(hr * 0.2, -hr * 0.6, -hr * 1.15, hr * 0.5);
+    ctx.fillStyle = shadeFill(ctx, 0, -hr, hr * 1.2, pal.cloth); ctx.fill();
+  } else if (kind === 'frostcrawler') {
+    ctx.fillStyle = '#e8f8ff';
+    for (let i = 0; i < 5; i++) { const ax = -hr * 0.7 + i * hr * 0.35; ctx.beginPath(); ctx.moveTo(ax - hr * 0.1, -hr * 0.75); ctx.lineTo(ax, -hr * (1.3 + (i % 2) * 0.25)); ctx.lineTo(ax + hr * 0.1, -hr * 0.75); ctx.fill(); }
+  } else if (kind === 'emberbeast') {
+    for (let i = 0; i < 4; i++) {
+      const fx = -hr * 0.6 + i * hr * 0.4, fl = Math.sin(t * 10 + i) * hr * 0.15;
+      ctx.beginPath(); ctx.moveTo(fx - hr * 0.2, -hr * 0.7); ctx.quadraticCurveTo(fx, -hr * 1.6 + fl, fx + hr * 0.2, -hr * 0.7);
+      ctx.fillStyle = i % 2 ? '#ffb43a' : '#ff6a2a'; ctx.fill();
+    }
+  } else {
+    for (let i = 0; i < 5; i++) circle(ctx, -hr * 0.6 + i * hr * 0.3, -hr * 0.82 + Math.sin(i * 1.7) * hr * 0.08, hr * 0.24, i % 2 ? tint(pal.hair, 0.15) : pal.hair);
+    if (kind === 'spore') { ctx.beginPath(); ctx.ellipse(hr * 0.2, -hr * 1.05, hr * 0.5, hr * 0.28, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = shadeFill(ctx, hr * 0.2, -hr * 1.1, hr * 0.5, '#d870e8'); ctx.fill(); }
+    if (kind === 'burrower') for (let i = 0; i < 3; i++) circle(ctx, -hr * 0.4 + i * hr * 0.45, -hr * 0.65, hr * 0.16, '#6a4a2a');
+  }
+  if (kind === 'spitter') {
+    const sc = 1 + (e.spitCharge || 0) * 0.5;
+    blob(ctx, -hr * 0.65, hr * 0.35, hr * 0.38 * sc, hr * 0.3 * sc, '#b7e06a', s * 0.6);
+  }
+  ctx.restore();
+
+  // ---- front arm + gear ----
+  if (e.shield > 0) {
+    // a mossy wooden fence plank held up as a shield
+    const px = shX - u * 0.95, py = shY + u * 0.35;
+    ctx.save(); ctx.translate(px, py); ctx.rotate(-0.06 + Math.sin(walk) * 0.03);
+    const broken = e.shield < d.shield * 0.5;
+    ctx.beginPath(); ctx.moveTo(-u * 0.32, -u * 1.25); ctx.lineTo(u * 0.32, -u * 1.15); ctx.lineTo(u * 0.32, u * 0.95); ctx.lineTo(-u * 0.32, u * 0.95); ctx.closePath();
+    ctx.fillStyle = shadeFill(ctx, 0, 0, u, broken ? '#8a6a3a' : '#a8804a'); ctx.fill();
+    ctx.strokeStyle = 'rgba(60,35,15,0.5)'; ctx.lineWidth = Math.max(1.5, u * 0.05);
+    for (const gx of [-0.12, 0.12]) { ctx.beginPath(); ctx.moveTo(gx * u, -u * 1.1); ctx.lineTo(gx * u, u * 0.9); ctx.stroke(); }
+    for (const ny of [-0.9, 0.6]) { circle(ctx, -u * 0.2, ny * u, u * 0.05, '#6a6a6a'); circle(ctx, u * 0.2, ny * u, u * 0.05, '#6a6a6a'); }
+    circle(ctx, u * 0.1, -u * 0.3, u * 0.16, 'rgba(90,140,60,0.8)');
+    if (broken) { ctx.strokeStyle = '#3a2410'; ctx.lineWidth = u * 0.06; ctx.beginPath(); ctx.moveTo(-u * 0.25, -u * 0.6); ctx.lineTo(u * 0.05, -u * 0.25); ctx.lineTo(-u * 0.1, u * 0.1); ctx.stroke(); }
+    ctx.restore();
+  }
+  arm(0, true);
+  if (e.shell > 0) {
+    // bark armour plates on shoulders and back
+    const cracked = e.shell < d.shell * 0.5;
+    for (const [dx, dy, w, h, rot] of [[0.25, 0.55, 0.62, 0.62, 0.15], [0.0, 0.05, 0.58, 0.34, -0.2]]) {
+      const cx = shX + dx * u, cy = shY + dy * u;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+      ctx.beginPath(); ctx.moveTo(-w * u, -h * u * 0.6); ctx.lineTo(-w * u * 0.3, -h * u); ctx.lineTo(w * u * 0.5, -h * u * 0.85); ctx.lineTo(w * u, -h * u * 0.1); ctx.lineTo(w * u * 0.7, h * u * 0.8); ctx.lineTo(-w * u * 0.6, h * u * 0.7); ctx.closePath();
+      ctx.fillStyle = shadeFill(ctx, 0, 0, w * u, '#8a6438'); ctx.fill();
+      ctx.strokeStyle = 'rgba(50,30,12,0.5)'; ctx.lineWidth = Math.max(1, u * 0.04);
+      for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(k * w * u * 0.45, -h * u * 0.7); ctx.lineTo(k * w * u * 0.35 + u * 0.03, h * u * 0.6); ctx.stroke(); }
+      circle(ctx, w * u * 0.3, -h * u * 0.5, u * 0.08, 'rgba(110,160,70,0.9)');
+      ctx.restore();
+    }
+    if (cracked) { ctx.strokeStyle = '#1e140a'; ctx.lineWidth = u * 0.05; ctx.beginPath(); ctx.moveTo(shX + u * 0.4, shY + u * 0.3); ctx.lineTo(shX + u * 0.2, shY + u * 0.55); ctx.lineTo(shX + u * 0.45, shY + u * 0.75); ctx.stroke(); }
+  }
+  if (kind === 'rotpriest') {
+    ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = u * 0.14; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(shX - u * 1.2, y); ctx.lineTo(shX - u * 1.35, headY - u * 0.6); ctx.stroke();
+    drawGlow(ctx, shX - u * 1.35, headY - u * 0.75, u * 0.6, 'rgba(160,255,120,0.6)');
+    circle(ctx, shX - u * 1.35, headY - u * 0.75, u * 0.2, '#b8ff90');
+  }
+  if (kind === 'emberbeast') for (let i = 0; i < 2; i++) { const fx = shX + (i ? 0.35 : -0.2) * u, fl = Math.sin(t * 9 + i) * u * 0.1; ctx.beginPath(); ctx.moveTo(fx - u * 0.18, shY + u * 0.05); ctx.quadraticCurveTo(fx, shY - u * 0.65 + fl, fx + u * 0.18, shY + u * 0.05); ctx.fillStyle = '#ff8a3a'; ctx.fill(); }
+  if (kind === 'burrower') for (let i = 0; i < 3; i++) { ctx.strokeStyle = '#7a5532'; ctx.lineWidth = u * 0.07; ctx.beginPath(); ctx.moveTo(hipX - u * 0.3 + i * u * 0.3, hipY - u * 0.3); ctx.quadraticCurveTo(hipX + i * u * 0.2, hipY + u * 0.3, hipX - u * 0.2 + i * u * 0.4, y - u * 0.1); ctx.stroke(); }
+
+  if (e.carries) drawWildseed(ctx, shX + u * 0.5, headY - u * 0.8, u * 0.35, t);
+  if (e.snared > 0) { ctx.strokeStyle = '#8a6d3b'; ctx.lineWidth = Math.max(3, u * 0.12); for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(hipX - u * 0.8, y); ctx.quadraticCurveTo(hipX, hipY + u * (0.6 - i * 0.5), hipX + u * 0.8, y); ctx.stroke(); } }
+  if (e.confused > 0) for (let i = 0; i < 3; i++) { const a = t * 5 + i * 2.1; star(ctx, headX + Math.cos(a) * u * 0.7, headY - u * 0.9 + Math.sin(a) * u * 0.15, Math.max(4, u * 0.16), '#fff1a8'); }
+}
+
+function drawGlowEye(ctx, x, y, r, color, spin) {
+  drawGlow(ctx, x, y, r * 2.4, color.startsWith('#') ? hexA(color, 0.55) : color);
+  ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.9, 0, 0, TAU);
+  ctx.fillStyle = '#fff8d8'; ctx.fill();
+  const px = spin != null ? x + Math.cos(spin * 12) * r * 0.3 : x - r * 0.3;
+  const py = spin != null ? y + Math.sin(spin * 12) * r * 0.3 : y;
+  circle(ctx, px, py, r * 0.55, color);
+  circle(ctx, px, py, r * 0.25, '#1a0a0c');
+  circle(ctx, px - r * 0.15, py - r * 0.18, r * 0.12, '#fff');
+}
+function hexA(h, a) { const n = parseInt(h.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
 
 // Original "Rot Crab": a wide mossy shell, six scuttling legs, one oversized claw, one big stalk eye.
 function drawRotCrab(ctx, e, s, t, x, y, r, walk, chew) {
@@ -1668,7 +1924,8 @@ export function drawRotlingFast(ctx, e, s, t) {
   if (entryFor('rotlings', e.k) || e.burrowed) { drawRotling(ctx, e, s, t); return; }
   const scale = d.boss ? 1.55 : d.big ? 1.25 : d.small ? 0.62 : 1;
   // walk / chew loops (matching the speeds used by the procedural animation)
-  const omega = e.eating ? 14 : d.crab ? (d.speed > 30 ? 13 : 8) * 1.4 : d.speed > 30 ? 13 : 8;
+  const husk = HUSK[e.k] && !d.flying;
+  const omega = husk ? (e.eating ? 12 : d.speed > 30 ? 9 : 5.5) : e.eating ? 14 : d.crab ? (d.speed > 30 ? 13 : 8) * 1.4 : d.speed > 30 ? 13 : 8;
   const period = (Math.PI * 2) / omega;
   const ph = ((t + e.seed * 0.37) % period + period) % period;
   const frame = Math.floor((ph / period) * R_FRAMES);
@@ -1676,7 +1933,7 @@ export function drawRotlingFast(ctx, e, s, t) {
   const shellState = e.shell > 0 ? (e.shell < d.shell * 0.5 ? 2 : 1) : 0;
   const shieldState = e.shield > 0 ? (e.shield < d.shield * 0.5 ? 2 : 1) : 0;
   const px = pixelScale(ctx);
-  const W = s * 2.05 * scale, H = s * (d.flying ? 1.75 : 1.3) * scale, ax = W * 0.46, ay = H * 0.97;
+  const W = s * 2.05 * scale, H = s * (d.flying ? 1.75 : husk ? 1.6 : 1.3) * scale, ax = W * 0.46, ay = H * 0.97;
   const key = `r|${e.k}|${Math.round(s)}|${px}|${frame}|${e.eating ? 1 : 0}|${e.slow > 0 ? 1 : 0}|${e.frozenTime > 0 ? 1 : 0}|${shellState}|${shieldState}|${e.confused > 0 ? 1 : 0}|${e.snared > 0 ? 1 : 0}|${e.carries ? 1 : 0}|${Math.round((e.spitCharge || 0) * 3)}`;
   const c = poseCanvas(key, W, H, px, (cx) => drawRotling(cx, {
     k: e.k, x: ax, y: ay, def: d, seed: 0, eating: e.eating, slow: e.slow > 0 ? 1 : 0, hurt: 0,

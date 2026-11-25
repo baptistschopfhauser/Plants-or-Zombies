@@ -1263,7 +1263,7 @@ export class Game {
         if (!e.burrowed && (e.hp < e.maxHp || e.def.boss)) {
           const w = e.def.boss ? 150 : 50;
           const sc = e.def.boss ? 1.55 : e.def.big ? 1.25 : e.def.small ? 0.62 : 1;
-          const top = e.y - TW * 0.33 * sc * (e.def.crab ? 1.6 : 2.55) - (e.def.flying ? 44 : 0) - 10;
+          const top = e.y - TW * 0.33 * sc * (e.def.crab ? 1.6 : e.def.flying || e.k === 'swarm' || e.def.boss === 'dive' ? 2.55 : 3.5) - (e.def.flying ? 44 : 0) - 10;
           this._bar(ctx, e.x - w / 2, top, w, e.hp / e.maxHp, '#e0526a');
           if (e.def.boss) this._text(ctx, e.def.name, e.x, top - 6, 16, '#ffd0e8', 'center');
         }
