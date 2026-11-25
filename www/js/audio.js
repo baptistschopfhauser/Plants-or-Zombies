@@ -179,6 +179,8 @@ const SONGS = [
   { root: 64, mode: 'lydian', bpm: 92, prog: [0, 1, 4, 5], lead: 'sine', pad: 'triangle', swing: 0.05, seed: 19 },     // Frostpeak Terraces
   { root: 55, mode: 'dorian', bpm: 96, prog: [0, 6, 3, 4], lead: 'triangle', pad: 'sine', swing: 0.0, seed: 23 },      // Crystal Caverns
   { root: 53, mode: 'minor', bpm: 122, prog: [0, 5, 3, 4], lead: 'sawtooth', pad: 'sawtooth', swing: 0.0, seed: 31 },  // The Rotheart
+  { root: 65, mode: 'lydian', bpm: 110, prog: [0, 4, 1, 5], lead: 'triangle', pad: 'sine', swing: 0.1, seed: 37 },  // Skyroot Gardens
+  { root: 50, mode: 'dorian', bpm: 88, prog: [0, 2, 5, 3], lead: 'sine', pad: 'triangle', swing: 0.06, seed: 43 },     // Mushroom Hollow
 ];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 let sched = null;

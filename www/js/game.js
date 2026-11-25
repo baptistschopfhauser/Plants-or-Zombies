@@ -1,7 +1,7 @@
 // Bloomguard — core game engine (simulation, input and rendering on a 1280x720 logical canvas).
 import { COLS, ROWS, GUARDIANS, ROTLINGS, WORLDS, LEVELS, LANTERNS, UPGRADE_MAX, BOSS_TITLES } from './data.js';
 import {
-  drawGuardian, drawRotling, drawGuardianFast, drawRotlingFast, drawLantern, drawGlowMote, drawWildseed, drawFirefly, drawCrystal, drawBee, drawBoulder,
+  drawGuardian, drawRotling, drawGuardianFast, drawRotlingFast, drawLantern, drawGlowMote, drawWildseed, drawFirefly, drawCrystal, drawGlowshroom, drawCloudGap, drawBee, drawBoulder,
   drawBackdrop, drawGroundDetails, makeDecor, makeBoardTexture, drawClouds, drawGlow,
 } from './art.js';
 import { sfx } from './audio.js';
@@ -51,10 +51,10 @@ export class Game {
     this.autoCollect = !!opts.autoCollect;
 
     this.time = 0;
-    this.glow = (this.level.startGlow || (this.world.mech === 'night' || this.world.mech === 'crystal' ? 200 : 150)) + 50 * (this.boosts.headstart || 0);
+    this.glow = (this.level.startGlow || (['night', 'crystal', 'shroom'].includes(this.world.mech) ? 200 : 150)) + 50 * (this.boosts.headstart || 0);
     if (this.potluck) this.glow = 0;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    this.tiles = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => ({ frozen: 0, crystal: false, scorch: 0, warn: 0, blight: false, cleanse: 0 })));
+    this.tiles = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => ({ frozen: 0, crystal: false, gap: false, scorch: 0, warn: 0, blight: false, cleanse: 0 })));
     this.enemies = [];
     this.corpses = [];
     this.shots = [];
@@ -96,7 +96,7 @@ export class Game {
     this.spawnQueue = [];
     this.nextWave = this.levelIndex === 0 ? 22 : 24;
     this.hint = this.levelIndex === 0 ? 0 : -1;
-    this.timers = { sky: 5, firefly: 4, ember: 20, blizzard: 26, crystal: 18, blight: 28, gust: 18 };
+    this.timers = { sky: 5, firefly: 4, ember: 20, blizzard: 26, crystal: 18, blight: 28, gust: 18, updraft: 12, spores: 30 };
 
     this._setupWorldTiles();
     if (this.potluck) this._setupPots();
@@ -227,7 +227,7 @@ export class Game {
       const out = [];
       for (const r of this.activeRows) for (let c = 1; c < COLS; c++) {
         const t = this.tiles[r][c];
-        if (!this.grid[r][c] && !t.frozen && !t.crystal) out.push([r, c]);
+        if (!this.grid[r][c] && !t.frozen && !t.crystal && !t.gap) out.push([r, c]);
       }
       return out;
     };
@@ -235,7 +235,17 @@ export class Game {
       const f = free().filter(([, c]) => c >= 2);
       for (let i = 0; i < 6 && f.length; i++) { const [r, c] = f.splice(Math.floor(Math.random() * f.length), 1)[0]; this.tiles[r][c].frozen = 3; }
     }
-    if (this.world.mech === 'crystal') {
+    if (this.world.mech === 'sky') {
+      // cloud gaps: a few tiles in the middle of the lawn can't be planted
+      const f = free().filter(([, c]) => c >= 2 && c <= 7);
+      const n = Math.min(4, Math.max(2, this.activeRows.length - 1));
+      for (let i = 0; i < n && f.length; i++) {
+        const [r, c] = f.splice(Math.floor(Math.random() * f.length), 1)[0];
+        this.tiles[r][c].gap = true;
+        for (let j = f.length - 1; j >= 0; j--) if (f[j][0] === r && Math.abs(f[j][1] - c) < 2) f.splice(j, 1);
+      }
+    }
+    if (this.world.mech === 'crystal' || this.world.mech === 'shroom') {
       const f = free().filter(([, c]) => c >= 1 && c <= 7);
       for (let i = 0; i < 5 && f.length; i++) { const [r, c] = f.splice(Math.floor(Math.random() * f.length), 1)[0]; this.tiles[r][c].crystal = true; }
     }
@@ -274,7 +284,7 @@ export class Game {
   power(g, base) { return base * pow(g.level) * this.rank(g.type) * this.boostAt(g); }
   plantable(r, c) {
     const t = this.tiles[r][c];
-    return this.activeRows.includes(r) && !t.frozen && !t.crystal && !t.pot && t.scorch <= 0;
+    return this.activeRows.includes(r) && !t.frozen && !t.crystal && !t.gap && !t.pot && t.scorch <= 0;
   }
   _makeGuardian(type, r, c) {
     const def = GUARDIANS[type] || { hp: 300 };
@@ -365,7 +375,7 @@ export class Game {
     }
     if (t.crystal) {
       t.crystal = false;
-      this.puff(colX(c), rowY(r) - 40, '#d6a8ff', 16, 180);
+      this.puff(colX(c), rowY(r) - 40, this.world.mech === 'shroom' ? '#7affc8' : '#d6a8ff', 16, 180);
       this.spawnMote(colX(c), rowY(r) - 60, 50, true);
       sfx('collect');
       return true;
@@ -648,7 +658,7 @@ export class Game {
     const T = this.timers;
 
     // ----- world mechanics -----
-    const skyEvery = { day: [8, 11], ember: [9, 12], frost: [12, 15], blight: [11, 13] }[mech];
+    const skyEvery = { day: [8, 11], ember: [9, 12], frost: [12, 15], blight: [11, 13], sky: [9, 12] }[mech];
     if (income && !this.potluck && skyEvery && this.time >= T.sky) {
       T.sky = this.time + rand(...skyEvery) * (this.mods.has('glowrain') ? 0.5 : 1);
       this.spawnMote(rand(BX + 40, BOARD_R - 40), BY - 20, 25, false);
@@ -670,6 +680,28 @@ export class Game {
         for (let i = 0; i < 2; i++) { const r = pick(this.activeRows), c = Math.floor(rand(0, COLS)); this.strikes.push({ r, c, t: 2, kind: 'ember', dmg: 150 }); }
       }
     }
+    if (mech === 'sky') {
+      if (this.time >= T.gust) {
+        T.gust = this.time + rand(18, 26);
+        this.gust = 1.2;
+        this.showBanner('Gust of wind!', 1.2);
+        for (const m of this.motes) if (!m.taken && !m.fromG) m.blown = true;
+      }
+      if (income && this.time >= T.updraft) {
+        // updrafts lift Glow up through the cloud gaps
+        T.updraft = this.time + rand(14, 18);
+        const gaps = [];
+        for (const r of this.activeRows) for (let c = 0; c < COLS; c++) if (this.tiles[r][c].gap) gaps.push([r, c]);
+        const [r, c] = gaps.length ? pick(gaps) : [pick(this.activeRows), Math.floor(rand(2, 7))];
+        this.spawnMote(colX(c), rowY(r) - 30, 25, true);
+        this.puff(colX(c), rowY(r) - 30, '#ffffff', 12, 120);
+      }
+    }
+    if (mech === 'shroom' && this.time >= T.spores) {
+      T.spores = this.time + rand(26, 32);
+      this.blizzard = 5;
+      this.showBanner('Spore storm! Guardians slow down', 1.6);
+    }
     if (this.gust > 0) {
       this.gust -= dt;
       for (const e of this.enemies) if (!e.def.boss && !e.burrowed) e.x = Math.min(BOARD_R + 40, e.x + 55 * dt);
@@ -684,12 +716,12 @@ export class Game {
       }
     }
     if (this.blizzard > 0) this.blizzard -= dt;
-    if (mech === 'crystal' && this.time >= T.crystal) {
+    if ((mech === 'crystal' || mech === 'shroom') && this.time >= T.crystal) {
       T.crystal = this.time + rand(16, 20);
       let count = 0;
       for (const row of this.tiles) for (const t of row) if (t.crystal) count++;
       const f = this._free().filter(([, c]) => c >= 1 && c <= 7);
-      if (count < 6 && f.length) { const [r, c] = pick(f); this.tiles[r][c].crystal = true; this.puff(colX(c), rowY(r) - 30, '#d6a8ff', 10); }
+      if (count < 6 && f.length) { const [r, c] = pick(f); this.tiles[r][c].crystal = true; this.puff(colX(c), rowY(r) - 30, mech === 'shroom' ? '#7affc8' : '#d6a8ff', 10); }
     }
     if (mech === 'blight' && this.time >= T.blight) {
       T.blight = this.time + 16;
@@ -756,7 +788,7 @@ export class Game {
           g.timer -= dt;
           if (g.timer <= 0) {
             g.timer = def.interval;
-            const night = this.world.mech === 'night' || this.world.mech === 'crystal';
+            const night = ['night', 'crystal', 'shroom'].includes(this.world.mech);
             const amt = def.amount * (night && def.nightBonus ? def.nightBonus : night ? 1.2 : 1) * pow(g.level) * this.rank(g.type);
             this.spawnMote(g.x + rand(-15, 15), g.y - 70, Math.round(amt), true);
           }
@@ -1172,6 +1204,18 @@ export class Game {
         }
         break;
       }
+      case 'gale':
+        for (let i = 0; i < (e.hp < e.maxHp * 0.5 ? 2 : 1); i++) this.spawnEnemy(d.summon, pick(this.activeRows), e.x - 30);
+        this.gust = 1.4;
+        for (const m of this.motes) if (!m.taken && !m.fromG) m.blown = true;
+        this.showBanner('The Galewretch whips up a gale!', 1.2);
+        break;
+      case 'spores':
+        this.spawnEnemy(d.summon, pick(this.activeRows), e.x - 30);
+        this.blizzard = Math.max(this.blizzard, e.hp < e.maxHp * 0.5 ? 4 : 3);
+        this.puff(e.x, e.y - 120, '#c87ad8', 30, 260);
+        this.showBanner('The Mycelord releases a spore storm!', 1.2);
+        break;
       case 'dive':
         e.diving = 2;
         this.puff(e.x, e.y - 20, '#4b4f8a', 20, 200);
@@ -1181,7 +1225,7 @@ export class Game {
 
   _updateWeather(dt) {
     const mech = this.world.mech;
-    const want = { day: 10, night: 0, ember: 30, frost: this.blizzard > 0 ? 120 : 40, crystal: 18, blight: 28 }[mech] || 0;
+    const want = { day: 10, night: 0, ember: 30, frost: this.blizzard > 0 ? 120 : 40, crystal: 18, blight: 28, sky: 14, shroom: this.blizzard > 0 ? 90 : 30 }[mech] || 0;
     while (this.weather.length < want) {
       this.weather.push({ x: rand(0, W), y: rand(-H, 0), vx: 0, vy: 0, s: rand(0.5, 1.5), k: Math.random() });
     }
@@ -1190,6 +1234,8 @@ export class Game {
       if (mech === 'frost') { p.vx = (this.blizzard > 0 ? -160 : -20) * p.s; p.vy = 60 * p.s; }
       else if (mech === 'ember') { p.vx = 30 * p.s; p.vy = -40 * p.s; }
       else if (mech === 'day') { p.vx = 25 * p.s; p.vy = 30 * p.s; }
+      else if (mech === 'sky') { p.vx = 40 * p.s; p.vy = 10 * p.s; }
+      else if (mech === 'shroom') { p.vx = (this.blizzard > 0 ? -90 : 6) * p.s; p.vy = -18 * p.s; }
       else { p.vx = Math.sin(this.time + p.k * 10) * 15; p.vy = -12 * p.s; }
       p.x += p.vx * dt; p.y += p.vy * dt;
       if (p.y > H + 10) { p.y = -10; p.x = rand(0, W); }
@@ -1239,7 +1285,7 @@ export class Game {
       this._bg = c; this._bgWorld = this.worldIndex;
     }
     ctx.drawImage(this._bg, 0, 0, W, BY + 20);
-    if (['day', 'ember', 'frost'].includes(this.world.mech)) drawClouds(ctx, W, 18, t, this.world.mech === 'ember' ? 'rgba(255,220,190,0.55)' : 'rgba(255,255,255,0.75)');
+    if (['day', 'ember', 'frost', 'sky'].includes(this.world.mech)) drawClouds(ctx, W, 18, t, this.world.mech === 'ember' ? 'rgba(255,220,190,0.55)' : 'rgba(255,255,255,0.75)');
     this._drawHome(ctx, t);
     this._drawBoard(ctx, t);
 
@@ -1351,11 +1397,11 @@ export class Game {
     if (this.empower > 0) { ctx.fillStyle = `rgba(214,168,255,${0.08 + Math.sin(t * 8) * 0.04})`; ctx.fillRect(0, BY, W, H - BY); }
     // storybook lighting: warm key light from the top-left
     const light = ctx.createRadialGradient(BX + 120, BY - 60, 40, BX + 300, BY + 120, 900);
-    const nightish = ['night', 'crystal', 'blight'].includes(this.world.mech);
+    const nightish = ['night', 'crystal', 'blight', 'shroom'].includes(this.world.mech);
     light.addColorStop(0, nightish ? 'rgba(160,180,255,0.12)' : 'rgba(255,240,190,0.18)');
     light.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = light; ctx.fillRect(0, BY, W, H - BY);
-    if (this.world.mech === 'night' || this.world.mech === 'crystal') {
+    if (this.world.mech === 'night' || this.world.mech === 'crystal' || this.world.mech === 'shroom') {
       const v = ctx.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 800);
       v.addColorStop(0, 'rgba(0,0,20,0)'); v.addColorStop(1, 'rgba(0,0,20,0.45)');
       ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
@@ -1416,7 +1462,7 @@ export class Game {
   }
 
   _drawHome(ctx, t) {
-    const night = ['night', 'crystal', 'blight'].includes(this.world.mech);
+    const night = ['night', 'crystal', 'blight', 'shroom'].includes(this.world.mech);
     ctx.fillStyle = this.world.ground[1];
     ctx.fillRect(-20, BY - 10, W + 40, H - BY + 30);
     // greenhouse
@@ -1458,7 +1504,7 @@ export class Game {
     ctx.strokeRect(BX - 5, BY - 3, BOARD_R - BX + 10, BOARD_B - BY + 10);
     ctx.restore();
     // short picket fence where the Rotlings come in
-    const fenceDark = ['night', 'crystal', 'blight'].includes(this.world.mech);
+    const fenceDark = ['night', 'crystal', 'blight', 'shroom'].includes(this.world.mech);
     for (let r = 0; r < ROWS; r++) {
       for (const yy of [BY + r * TH + 18, BY + r * TH + 74]) {
         ctx.fillStyle = fenceDark ? '#5a4a6a' : '#e8dcc0';
@@ -1491,7 +1537,8 @@ export class Game {
         ctx.beginPath(); ctx.moveTo(x + 24, y + 24); ctx.lineTo(x + 50, y + 44); ctx.moveTo(x + 60, y + 30); ctx.lineTo(x + 80, y + 70); ctx.stroke();
         for (let i = 0; i < tile.frozen; i++) { ctx.fillStyle = '#4a7a9a'; ctx.beginPath(); ctx.arc(x + TW / 2 - 14 + i * 14, y + TH - 22, 4, 0, Math.PI * 2); ctx.fill(); }
       }
-      if (tile.crystal) drawCrystal(ctx, x + TW / 2, y + TH - 10, TW, t);
+      if (tile.gap) drawCloudGap(ctx, x, y, TW, TH, t, c + r * 3);
+      if (tile.crystal) (this.world.mech === 'shroom' ? drawGlowshroom : drawCrystal)(ctx, x + TW / 2, y + TH - 10, TW, t);
       if (tile.pot) this._drawPot(ctx, x + TW / 2, y + TH - 12, tile.pot, t);
     }
     for (const s of this.strikes) {
@@ -1580,9 +1627,11 @@ export class Game {
       else if (mech === 'ember') { ctx.fillStyle = `rgba(255,${120 + p.k * 100},60,${0.5 + 0.4 * Math.sin(t * 5 + p.k * 9)})`; ctx.fillRect(p.x, p.y, 3, 3); }
       else if (mech === 'day') { ctx.fillStyle = 'rgba(255,190,220,0.7)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 4, 2, t + p.k * 6, 0, Math.PI * 2); ctx.fill(); }
       else if (mech === 'crystal') { ctx.fillStyle = `rgba(214,168,255,${0.3 + 0.5 * Math.abs(Math.sin(t * 2 + p.k * 9))})`; ctx.fillRect(p.x, p.y, 2, 2); }
+      else if (mech === 'sky') { ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.5 + p.s * 1.5, 0, Math.PI * 2); ctx.fill(); }
+      else if (mech === 'shroom') { ctx.fillStyle = `rgba(${p.k > 0.5 ? '122,255,200' : '216,140,255'},${0.35 + 0.4 * Math.abs(Math.sin(t * 2 + p.k * 9))})`; ctx.beginPath(); ctx.arc(p.x, p.y, 1.5 + p.s, 0, Math.PI * 2); ctx.fill(); }
       else if (mech === 'blight') { ctx.fillStyle = 'rgba(200,120,220,0.45)'; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5 * p.s, 0, Math.PI * 2); ctx.fill(); }
     }
-    if (this.blizzard > 0) { ctx.fillStyle = 'rgba(220,240,255,0.18)'; ctx.fillRect(0, 0, W, H); }
+    if (this.blizzard > 0) { ctx.fillStyle = this.world.mech === 'shroom' ? 'rgba(170,90,200,0.16)' : 'rgba(220,240,255,0.18)'; ctx.fillRect(0, 0, W, H); }
   }
 
   _drawHud(ctx, t) {

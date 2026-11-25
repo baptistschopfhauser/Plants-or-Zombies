@@ -314,6 +314,22 @@ function drawLandmarks(ctx, world, t) {
     for (let i = 0; i < 40; i++) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc((i * 137 + t * 20) % 1280, (i * 71 + t * 30) % 560, 2, 0, Math.PI * 2); ctx.fill(); }
   } else if (id === 'caverns') {
     for (const [x, y, s] of [[160, 540, 120], [640, 560, 90], [1110, 530, 140]]) drawCrystal(ctx, x, y, s, t);
+  } else if (id === 'sky') {
+    // a giant root arch and a windmill made of leaves
+    ctx.strokeStyle = '#8a6a48'; ctx.lineWidth = 18; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(980, 560); ctx.bezierCurveTo(1000, 380, 1200, 380, 1220, 560); ctx.stroke();
+    ctx.translate(180, 470);
+    ctx.fillStyle = '#c8a070'; ctx.fillRect(-10, -10, 20, 90);
+    ctx.rotate(t * 1.2);
+    for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.fillStyle = i % 2 ? '#8fd06a' : '#6fb84f'; ctx.beginPath(); ctx.ellipse(0, -38, 14, 38, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+  } else if (id === 'hollow') {
+    for (const [x, y, w] of [[150, 540, 60], [1110, 520, 80], [640, 560, 40]]) {
+      ctx.fillStyle = '#efe6d0'; ctx.fillRect(x - w * 0.15, y - w, w * 0.3, w);
+      ctx.fillStyle = `rgba(122,255,200,${0.75 + Math.sin(t * 2 + x) * 0.2})`;
+      ctx.beginPath(); ctx.ellipse(x, y - w, w * 0.8, w * 0.5, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(122,255,200,0.15)'; ctx.beginPath(); ctx.arc(x, y - w, w * 1.3, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (id === 'rotheart') {
     for (const [x, y, w] of [[260, 500, 110], [760, 520, 140], [1100, 470, 90]]) {
       const g = ctx.createRadialGradient(x, y, 0, x, y, w);
@@ -322,6 +338,57 @@ function drawLandmarks(ctx, world, t) {
     }
   }
   ctx.restore();
+}
+
+// A winding dirt road between level nodes; the cleared part is lined with little flowers.
+function drawRoad(ctx, pts, reached, t) {
+  const P = pts.map(([x, y]) => [x * 12.8, y * 5.6]);
+  const trace = (n) => {
+    ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]);
+    for (let i = 1; i <= n; i++) { const [ax, ay] = P[i - 1], [bx, by] = P[i]; const mx = (ax + bx) / 2; ctx.bezierCurveTo(mx, ay, mx, by, bx, by); }
+  };
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  trace(P.length - 1);
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 44; ctx.stroke();
+  ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 36; ctx.stroke();
+  ctx.strokeStyle = '#c8a46e'; ctx.lineWidth = 26; ctx.stroke();
+  ctx.setLineDash([3, 16]); ctx.strokeStyle = 'rgba(110,80,45,0.55)'; ctx.lineWidth = 8; ctx.stroke(); ctx.setLineDash([]);
+  if (reached > 0) {
+    trace(Math.min(reached, P.length - 1));
+    ctx.strokeStyle = `rgba(255,226,122,${0.55 + 0.2 * Math.sin(t * 3)})`; ctx.lineWidth = 6; ctx.setLineDash([14, 12]); ctx.lineDashOffset = -t * 30; ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function starsInWorld(wi) {
+  let n = 0;
+  for (let j = 0; j < LEVELS_PER_WORLD; j++) n += data.stars[wi * LEVELS_PER_WORLD + j] || 0;
+  return n;
+}
+
+// A still illustration of a world for its card: scenery, a guardian and the boss.
+const HERO = ['thornling', 'sporelamp', 'emberroot', 'frostbell', 'prismbud', 'mossmender', 'lanceleaf', 'hivebloom'];
+function paintWorldCard(cv, world, wi) {
+  const ctx = cv.getContext('2d');
+  ctx.save();
+  ctx.scale(cv.width / 1280, cv.height / 720);
+  const decor = makeDecor(world, { W: 1280, H: 720, BX: 0, BY: 330, BR: 1280, BB: 720 });
+  drawBackdrop(ctx, world, 3, { W: 1280, H: 720, BY: 330 }, decor);
+  if (['dawn', 'orchard', 'frost', 'sky'].includes(world.id)) drawClouds(ctx, 1280, 60, 3);
+  const g = ctx.createLinearGradient(0, 330, 0, 720);
+  g.addColorStop(0, world.ground[0]); g.addColorStop(1, world.ground[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 326, 1280, 400);
+  drawGroundDetails(ctx, world, null, decor, 3);
+  ctx.save(); ctx.translate(0, 160); drawLandmarks(ctx, world, 3); ctx.restore();
+  const hero = HERO[wi] || 'thornling';
+  if (GUARDIANS[hero]) drawGuardian(ctx, hero, 330, 640, 300, 0.4);
+  const boss = LEVELS[wi * LEVELS_PER_WORLD + LEVELS_PER_WORLD - 1].boss;
+  const def = ROTLINGS[boss];
+  drawRotling(ctx, { k: boss, x: 930, y: 660, def, seed: 1, shell: 0, shield: 0, hurt: 0 }, 210, 0.6);
+  ctx.restore();
+  const v = ctx.createLinearGradient(0, cv.height * 0.55, 0, cv.height);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, cv.width, cv.height);
 }
 
 // Animated illustrated scene behind the main menu.
@@ -409,7 +476,7 @@ const SCREENS = {
         sign(anyProgress ? 'Continue Adventure' : 'New Adventure', '🌱', () => {
           if (!data.seenIntro) playMovie('intro', () => { data.seenIntro = true; persist(); withStory('pre', 0, () => show('map')); });
           else if (!anyProgress) withStory('pre', 0, () => show('map'));
-          else show('map');
+          else show('worlds');
         }, 'big'),
         el('div', { class: 'sign-grid' },
           sign(dailyDone ? 'Daily ✓' : 'Daily Challenge', '📅', () => show('daily'), dailyDone ? '' : 'glow'),
@@ -610,6 +677,58 @@ const SCREENS = {
     anim();
   },
 
+  worlds() {
+    stopGame();
+    startMusic(Math.min(mapWorld, WORLDS.length - 1));
+    const total = WORLDS.length * LEVELS_PER_WORLD * 3;
+    const row = el('div', { class: 'world-row' });
+    WORLDS.forEach((w, wi) => {
+      const first = wi * LEVELS_PER_WORLD;
+      const unlocked = first <= data.unlockedLevel;
+      const cleared = data.unlockedLevel >= first + LEVELS_PER_WORLD;
+      const here = unlocked && !cleared;
+      const stars = starsInWorld(wi);
+      const art = el('canvas', { width: 640, height: 360, class: 'wc-art' });
+      paintWorldCard(art, w, wi);
+      const boss = LEVELS[first + LEVELS_PER_WORLD - 1].boss;
+      const card = el('button', {
+        class: `world-card ${unlocked ? '' : 'locked'} ${here ? 'here' : ''} ${cleared ? 'cleared' : ''}`,
+        style: `--accent:${w.accent}`,
+        disabled: unlocked ? false : '',
+        'aria-label': `${w.name}${unlocked ? '' : ' (locked)'}`,
+        onclick: () => { sfx('click'); mapWorld = wi; show('map'); },
+      },
+      art,
+      el('span', { class: 'wc-num' }, `World ${wi + 1}`),
+      here ? el('span', { class: 'wc-ribbon' }, 'You are here') : cleared ? el('span', { class: 'wc-ribbon done' }, '✔ Cleared') : null,
+      el('div', { class: 'wc-body' },
+        el('h2', {}, w.name),
+        el('p', {}, w.blurb),
+        el('div', { class: 'wc-pips' }, Array.from({ length: LEVELS_PER_WORLD }, (_, j) => {
+          const li = first + j, st = data.stars[li] || 0, lv = LEVELS[li];
+          return el('span', { class: `pip ${li < data.unlockedLevel ? 'won' : li === data.unlockedLevel ? 'next' : ''} ${lv.boss ? 'boss' : ''}`, title: `Level ${j + 1}` },
+            el('b', {}, lv.boss ? '♛' : String(j + 1)), el('i', {}, li < data.unlockedLevel ? '★'.repeat(st) + '☆'.repeat(3 - st) : ''));
+        })),
+        el('div', { class: 'wc-rule' }, w.rule),
+        el('div', { class: 'wc-prog' }, el('div', { class: 'wc-bar' }, el('i', { style: `width:${(stars / 18) * 100}%` })), el('b', {}, `★ ${stars}/18`)),
+        el('div', { class: 'wc-boss' }, portrait(boss, 40, true), el('span', {}, el('small', {}, 'Boss'), ROTLINGS[boss].name))),
+      unlocked ? null : el('div', { class: 'wc-lock' }, el('span', {}, '🔒'), `Clear ${WORLDS[wi - 1].name}`));
+      row.append(card);
+    });
+    ui.append(
+      el('div', { class: 'topbar' },
+        el('button', { class: 'back', onclick: () => { sfx('click'); show('title'); } }, '‹ Back'),
+        el('h1', {}, 'Choose a World'),
+        el('span', { class: 'total' }, `★ ${totalStars()}/${total}`)),
+      row,
+      el('div', { class: 'map-foot' },
+        el('span', { class: 'rule' }, 'Clear a world\'s boss to open the road to the next one. Earn all 3 stars on every level to master it.'),
+        el('button', { onclick: () => { sfx('click'); show('grove'); } }, '🌿 Grove'),
+        el('button', { class: 'endless', disabled: data.unlockedLevel >= 12 ? false : '', title: 'Clear Moonlit Marsh to unlock', onclick: () => { sfx('click'); pendingLevel = 'endless'; show('loadout'); } }, `∞ Endless (best ${data.endlessBest})`)));
+    const current = row.querySelector('.here') || row.lastElementChild;
+    requestAnimationFrame(() => { const target = row.children[Math.min(mapWorld, WORLDS.length - 1)] || current; row.scrollLeft = Math.max(0, target.offsetLeft - row.clientWidth / 2 + target.clientWidth / 2); });
+  },
+
   map() {
     stopGame();
     const wi = mapWorld;
@@ -622,8 +741,6 @@ const SCREENS = {
     scene.append(bg);
     // winding path positions (percent)
     const pts = [[10, 72], [25, 40], [41, 66], [57, 34], [72, 62], [88, 38]];
-    const pathSvg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="map-path"><path d="M ${pts.map(([x, y]) => `${x} ${y}`).join(' L ')}" /></svg>`;
-    scene.insertAdjacentHTML('beforeend', pathSvg);
     for (let j = 0; j < LEVELS_PER_WORLD; j++) {
       const i = first + j;
       const lv = LEVELS[i];
@@ -637,14 +754,16 @@ const SCREENS = {
         'aria-label': `Level ${j + 1}${locked ? ' (locked)' : ''}`,
         onclick: () => { sfx('click'); pendingLevel = i; withStory('pre', i, () => show('loadout')); },
       },
-      el('span', { class: 'num' }, locked ? '🔒' : icon),
-      el('span', { class: 'stars' }, locked ? '' : '★'.repeat(st) + '☆'.repeat(3 - st))));
+      lv.boss && !locked ? portrait(lv.boss, 64, true) : el('span', { class: 'num' }, locked ? '🔒' : icon),
+      el('span', { class: 'stars' }, locked ? '' : '★'.repeat(st) + '☆'.repeat(3 - st)),
+      i < data.unlockedLevel ? el('span', { class: 'flag' }, '✔') : null,
+      el('span', { class: 'tag' }, lv.boss ? ROTLINGS[lv.boss].name : lv.goal === 'sprouts' ? 'Protect sprouts' : lv.goal === 'budget' ? 'Fixed Glow' : lv.goal === 'given' ? 'Set team' : `Level ${j + 1}`)));
     }
     if (!worldUnlocked) scene.append(el('div', { class: 'world-lock' }, `🔒 Clear ${WORLDS[wi - 1].name} to travel here`));
-    const worldStars = Array.from({ length: LEVELS_PER_WORLD }, (_, j) => data.stars[first + j] || 0).reduce((a, b) => a + b, 0);
+    const worldStars = starsInWorld(wi);
     ui.append(
       el('div', { class: 'topbar' },
-        el('button', { class: 'back', onclick: () => { sfx('click'); show('title'); } }, '‹ Back'),
+        el('button', { class: 'back', onclick: () => { sfx('click'); show('worlds'); } }, '‹ Worlds'),
         el('div', { class: 'world-nav' },
           el('button', { class: 'arrow', disabled: wi === 0 ? '' : false, 'aria-label': 'Previous world', onclick: () => { sfx('click'); mapWorld--; show('map'); } }, '‹'),
           el('div', { class: 'world-title' }, el('h1', {}, `${wi + 1}. ${world.name}`), el('small', {}, world.blurb)),
@@ -674,6 +793,7 @@ const SCREENS = {
       ctx.fillRect(0, 196, 1280, 364);
       drawGroundDetails(ctx, world, null, groundDecor, t);
       drawLandmarks(ctx, world, t);
+      drawRoad(ctx, pts, Math.min(LEVELS_PER_WORLD - 1, data.unlockedLevel - first), t);
     };
     frame();
   },
@@ -1085,7 +1205,7 @@ function onEnd(level, loadout, res) {
     award('first');
     if (data.stars[level] === 3) award('perfect');
     if (totalStars() >= 60) award('starry');
-    const bossIdx = ['grubmother', 'bogmaw', 'cinderhusk', 'rimefang', 'gloomwyrm', 'monarch'].indexOf(lv.boss);
+    const bossIdx = ['grubmother', 'bogmaw', 'cinderhusk', 'rimefang', 'gloomwyrm', 'monarch', 'galewretch', 'mycelord'].indexOf(lv.boss);
     if (bossIdx >= 0) award('boss' + (bossIdx + 1));
     if (Object.keys(GUARDIANS).every((k) => data.guardians.includes(k))) award('collector');
   }
@@ -1101,7 +1221,7 @@ function onEnd(level, loadout, res) {
   const after = () => show('result', res, level, loadout);
   if (!res.endless && res.won) {
     withStory('post', level, () => {
-      if (level === LEVELS.length - 1 && !data.seenEnding) playMovie('ending', () => { data.seenEnding = true; persist(); after(); });
+      if (LEVELS[level].boss === 'monarch' && !data.seenEnding) playMovie('ending', () => { data.seenEnding = true; persist(); after(); });
       else after();
     });
   } else after();
@@ -1138,6 +1258,7 @@ function handleBack() {
     const App = window.Capacitor?.Plugins?.App;
     if (App) App.exitApp();
   } else if (screen === 'loadout' || screen === 'result') show('map');
+  else if (screen === 'map') show('worlds');
   else show('title');
 }
 const CapApp = window.Capacitor?.Plugins?.App;

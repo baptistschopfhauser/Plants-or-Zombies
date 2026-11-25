@@ -97,6 +97,8 @@ export const ROTLINGS = {
   crystalback:{ name: 'Gemhusk', hp: 700, speed: 15, dps: 110, cost: 4.5, color: '#7a8fd6', armor: 0.5 },
   rotpriest: { name: 'Rot Priest', hp: 420, speed: 16, dps: 60, cost: 4, color: '#6b4a7a', heals: 35 },
   rotcrab:   { name: 'Rot Crab', hp: 380, speed: 26, dps: 110, cost: 3, color: '#c8603a', crab: true },
+  glider:    { name: 'Kite Husk', hp: 240, speed: 32, dps: 0, cost: 2.5, color: '#c8a05a', flying: true },
+  puffcap:   { name: 'Puffcap', hp: 460, speed: 17, dps: 90, cost: 3.5, color: '#b0506a', armor: 0.2, ranged: { range: 3, interval: 4, damage: 50 } },
   brute:     { name: 'Mossbrute', hp: 1500, speed: 13, dps: 220, cost: 6, color: '#56634a', big: true, crushes: true },
   // Bosses (one per world)
   grubmother:{ name: 'Mother Husk', hp: 3200, speed: 8, dps: 400, cost: 0, color: '#8a6a9c', boss: 'summon', summon: 'grub', every: 7, crushes: true },
@@ -104,6 +106,8 @@ export const ROTLINGS = {
   cinderhusk:{ name: 'Cinderhusk', hp: 6500, speed: 7, dps: 500, cost: 0, color: '#8a3a20', boss: 'fire', every: 9, fireproof: true, crushes: true },
   rimefang:  { name: 'Rimefang', hp: 8000, speed: 7, dps: 550, cost: 0, color: '#5f87b0', boss: 'freeze', every: 11, frostproof: true, crushes: true },
   gloomwyrm: { name: 'Gloomwyrm', hp: 9500, speed: 8, dps: 600, cost: 0, color: '#4b4f8a', boss: 'dive', every: 10, crushes: true },
+  galewretch:{ name: 'Galewretch', hp: 10000, speed: 7, dps: 650, cost: 0, color: '#6a8ab0', boss: 'gale', summon: 'glider', every: 9, crushes: true },
+  mycelord:  { name: 'The Mycelord', hp: 12000, speed: 6, dps: 750, cost: 0, color: '#8a3a5a', boss: 'spores', summon: 'puffcap', every: 11, crushes: true },
   monarch:   { name: 'The Rot Monarch', hp: 11500, speed: 6, dps: 700, cost: 0, color: '#5b3b6b', boss: 'monarch', summon: 'skitter', every: 8, crushes: true },
 };
 
@@ -122,12 +126,16 @@ export const ENEMY_INFO = {
   crystalback: 'Crystals have grown through its coat, halving damage from thorns, chimes, pollen and bees.',
   rotpriest: 'A hooded husk with a glowing staff. Heals the Rotlings around it. Take it out first!',
   rotcrab: 'Scuttles in sideways and snaps guardians with one huge claw.',
+  glider: 'Dangles from a patched leaf kite and drifts over your guardians toward the Lanterns.',
+  puffcap: 'A husk with a giant toadstool for a head. Lobs spore puffs from range, and its cap softens hits by a fifth.',
   brute: 'Huge, tough and hits like a falling tree. Crushes bramble.',
   grubmother: 'A giant husk hauling a sack of squirming Shamblers-to-be.',
   bogmaw: 'A swamp giant dripping with mud. Calls rot rats from the bog.',
   cinderhusk: 'A burning giant that hurls fireballs across the garden.',
   rimefang: 'A frozen giant whose breath freezes whole columns of guardians.',
   gloomwyrm: 'Dives underground and resurfaces in another lane.',
+  galewretch: 'A giant husk in flying goggles. Sends Kite Husks and stirs up storms that blow your Glow away.',
+  mycelord: 'The ancient fungus where the blight was born. Its spore storms slow the whole garden.',
   monarch: 'Ruler of the blight. Holder of the stolen Hearthseed.',
 };
 
@@ -145,6 +153,10 @@ export const WORLDS = [
     blurb: 'Glittering tunnels deep below the world.', rule: 'No sky Glow. Tap crystals to mine Glow. More crystals keep growing.' },
   { id: 'rotheart', name: 'The Rotheart', mech: 'blight', sky: ['#2a0f2a', '#5a2a4a'], ground: ['#5d5a3e', '#555236'], accent: '#ff6ad5',
     blurb: 'The Monarch\'s lair, where the Hearthseed is kept.', rule: 'Blight spreads over tiles and hurts guardians. Mossmenders cleanse it.' },
+  { id: 'sky', name: 'Skyroot Gardens', mech: 'sky', sky: ['#6fb8f0', '#fff0d6'], ground: ['#9fe07c', '#8ad068'], accent: '#ffe27a',
+    blurb: 'Floating garden islands, tied to the earth by giant roots.', rule: 'Clouds cover some tiles (no planting). Updrafts carry Glow, gusts blow Rotlings back.' },
+  { id: 'hollow', name: 'Mushroom Hollow', mech: 'shroom', sky: ['#160e2c', '#33204e'], ground: ['#55603e', '#4c5838'], accent: '#7affc8',
+    blurb: 'A giant glowing forest where the blight first grew.', rule: 'No sky Glow. Tap glowcaps to harvest Glow. Spore storms slow your guardians.' },
 ];
 
 // Level goals:
@@ -197,6 +209,20 @@ export const LEVELS = [
   L(5, { waves: 10, pool: ['grub', 'shellback', 'spitter', 'rotpriest', 'brute'], reward: null, budget: 15, challenge: { noLoss: true } }),
   L(5, { goal: 'sprouts', waves: 10, pool: ['swarm', 'moth', 'emberbeast', 'frostcrawler', 'crystalback', 'brute'], reward: null, budget: 15, challenge: { spend: 5500 } }),
   L(5, { boss: 'monarch', waves: 10, pool: ['grub', 'skitter', 'shieldbug', 'spitter', 'spore', 'crystalback', 'rotpriest', 'brute'], reward: null, budget: 16, challenge: { noLoss: true } }),
+  // 7 — Skyroot Gardens
+  L(6, { waves: 9, pool: ['grub', 'skitter', 'glider'], reward: null, budget: 13, challenge: { maxPlants: 22 } }),
+  L(6, { waves: 9, pool: ['shellback', 'glider', 'spitter', 'swarm'], reward: null, budget: 14, challenge: { noLoss: true } }),
+  L(6, { goal: 'sprouts', waves: 9, pool: ['skitter', 'glider', 'moth', 'shieldbug'], reward: null, budget: 14, challenge: { spend: 4500 } }),
+  L(6, { goal: 'budget', waves: 7, pool: ['swarm', 'glider', 'burrower', 'rotcrab'], reward: null, budget: 11, startGlow: 2400, challenge: { maxPlants: 22 } }),
+  L(6, { waves: 10, pool: ['grub', 'glider', 'crystalback', 'rotpriest', 'brute'], reward: null, budget: 16, challenge: { noLoss: true } }),
+  L(6, { boss: 'galewretch', waves: 10, pool: ['grub', 'skitter', 'glider', 'shieldbug', 'spitter', 'brute'], reward: null, budget: 16, challenge: { spend: 6000 } }),
+  // 8 — Mushroom Hollow
+  L(7, { waves: 10, pool: ['grub', 'spore', 'puffcap'], reward: null, budget: 14, startGlow: 250, challenge: { maxPlants: 24 } }),
+  L(7, { waves: 10, pool: ['swarm', 'puffcap', 'burrower', 'moth'], reward: null, budget: 15, challenge: { noLoss: true } }),
+  L(7, { goal: 'given', given: ['sporelamp', 'thornling', 'lanceleaf', 'barkwall', 'emberroot', 'hivebloom', 'mossmender'], waves: 9, pool: ['grub', 'puffcap', 'shieldbug', 'glider'], reward: null, budget: 14, challenge: { maxPlants: 26 } }),
+  L(7, { waves: 10, pool: ['puffcap', 'spore', 'rotpriest', 'crystalback', 'skitter'], reward: null, budget: 16, challenge: { spend: 5500 } }),
+  L(7, { goal: 'sprouts', waves: 10, pool: ['swarm', 'glider', 'puffcap', 'emberbeast', 'brute'], reward: null, budget: 16, challenge: { noLoss: true } }),
+  L(7, { boss: 'mycelord', waves: 11, pool: ['grub', 'skitter', 'puffcap', 'spore', 'glider', 'rotpriest', 'crystalback', 'brute'], reward: null, budget: 16, challenge: { maxPlants: 30 } }),
 ];
 
 export const LEVELS_PER_WORLD = 6;
@@ -222,6 +248,8 @@ export const ACHIEVEMENTS = [
   { id: 'boss3', name: 'Fire Fighter', desc: 'Defeat Cinderhusk.' },
   { id: 'boss4', name: 'Thaw', desc: 'Defeat Rimefang.' },
   { id: 'boss5', name: 'Deep Delver', desc: 'Defeat the Gloomwyrm.' },
+  { id: 'boss7', name: 'Cloudbreaker', desc: 'Ground the Galewretch in the Skyroot Gardens.' },
+  { id: 'boss8', name: 'Rootcutter', desc: 'Defeat the Mycelord and end the blight for good.' },
   { id: 'boss6', name: 'Hearthkeeper', desc: 'Defeat the Rot Monarch and recover the Hearthseed.' },
   { id: 'over', name: 'Wild at Heart', desc: 'Trigger 25 Overblooms.' },
   { id: 'star3', name: 'Shining Star', desc: 'Upgrade a guardian to three stars in battle.' },
@@ -240,6 +268,8 @@ export const BOSS_TITLES = {
   rimefang: 'The Frost That Never Melts',
   gloomwyrm: 'Serpent of the Deep Caverns',
   monarch: 'Thief of the Hearthseed',
+  galewretch: 'Captain of the Rotten Winds',
+  mycelord: 'Root of All Rot',
 };
 
 // ---------- Store: Acorns buy permanent boosts (hats/skins are switched off for now) ----------
@@ -295,7 +325,7 @@ export function dailyLevel(key = todayKey(), unlockedLevel = 36) {
   const rnd = seeded(hashStr('bloomguard-' + key));
   const maxWorld = Math.max(0, Math.min(WORLDS.length - 1, Math.floor(unlockedLevel / LEVELS_PER_WORLD)));
   const world = Math.floor(rnd() * (maxWorld + 1));
-  const foes = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'rotcrab', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute'];
+  const foes = ['grub', 'swarm', 'skitter', 'shellback', 'moth', 'shieldbug', 'burrower', 'rotcrab', 'spitter', 'spore', 'emberbeast', 'frostcrawler', 'crystalback', 'rotpriest', 'brute', 'glider', 'puffcap'];
   const avail = foes.slice(0, 5 + world * 2);
   const pool = [];
   while (pool.length < 4) { const k = avail[Math.floor(rnd() * avail.length)]; if (!pool.includes(k)) pool.push(k); }
@@ -366,5 +396,9 @@ export const LORE = {
   cinderhusk: ['Cinderhusk lit the first fire in the orchard and was proud of it.', 'Its fireballs target your guardians. Spread them out.'],
   rimefang: ['Rimefang has never felt warm. Not even once.', 'It freezes whole columns. Don\'t stack everything in one column.'],
   gloomwyrm: ['Gloomwyrm can taste fear through the dirt.', 'It dives and resurfaces in another lane. Defend every lane.'],
+  glider: ["Kite Husks have no idea how to land. They just sort of stop.", 'They fly over walls. Hiveblooms, Lanceleafs and shooters bring them down.'],
+  puffcap: ["Nobody knows whether the husk grew the mushroom or the mushroom grew the husk.", 'It shoots from range and shrugs off a fifth of every hit. Burn or lance it.'],
+  galewretch: ["The Galewretch once flew a kite so high it never came back down. Neither did he.", 'Its gusts blow loose Glow away, so collect quickly. Keep anti-air ready for Kite Husks.'],
+  mycelord: ["The Mycelord was the first thing to grow in the dark, and it has hated the sun ever since.", 'Spore storms slow every guardian. Bring strong hitters and Mossmenders.'],
   monarch: ['The Rot Monarch wanted a garden, but never learned how to care for one.', 'Phase two spreads blight. Bring Mossmenders and Wildseeds.'],
 };

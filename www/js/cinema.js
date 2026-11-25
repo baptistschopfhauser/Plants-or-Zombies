@@ -302,7 +302,7 @@ const ENDING = [
       const lines = [
         ['Bloomguard', 72], ['', 30], ['~ The End ~', 40], ['', 40],
         ['Starring', 28], ['Wren, the gardener', 34], ['Moss, the tortoise', 34], ['18 brave guardians', 34], ['', 30],
-        ['And the villains', 28], ['The Rot Monarch', 34], ['Mother Husk · Bogmaw · Cinderhusk', 30], ['Rimefang · Gloomwyrm', 30], ['', 30],
+        ['And the villains', 28], ['The Rot Monarch', 34], ['Mother Husk · Bogmaw · Cinderhusk', 30], ['Rimefang · Gloomwyrm', 30], ['Galewretch · The Mycelord', 30], ['', 30],
         ['Story, art, music and code', 28], ['Made with love by the Bloomguard team', 32], ['Every image and sound is created in code', 26], ['', 30],
         ['Special thanks', 28], ['You, for playing!', 38], ['', 50],
         ['The blight still lurks in the shadows...', 28], ['Endless Bloom awaits.', 34],

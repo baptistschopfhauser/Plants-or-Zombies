@@ -20,6 +20,7 @@ await new Promise((r) => server.listen(0, r));
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
+if (process.env.ONLY) await page.addInitScript((o) => { window.__onlyLevels = o; }, process.env.ONLY.split(',').map(Number));
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
@@ -169,7 +170,7 @@ const results = await page.evaluate(async () => {
   // Daily challenges for a week of dates
   const dlo = ['glowcap', 'thornling', 'twinbud', 'emberroot', 'hivebloom', 'barkwall', 'lanceleaf', 'mossmender'];
   for (let d = 1; d <= 7; d++) {
-    const lvl = dailyLevel(`2026-12-0${d}`, 36);
+    const lvl = dailyLevel(`2026-12-0${d}`, 48);
     let r = await simulate(lvl, dlo, makeBot(dlo));
     for (let a = 0; a < 2 && !r.won && !r.err; a++) r = await simulate(lvl, dlo, makeBot(dlo));
     out.push({ daily: `${lvl.goal}/${lvl.mods.join('+')}`, ...r });
@@ -236,7 +237,9 @@ await page.click('text=Watch the ending');
 await page.waitForTimeout(3000);
 await page.click('.cinema-skip');
 await page.waitForTimeout(500);
-for (let w = 0; w < 6; w++) await page.evaluate((w) => { window.__bloomguard.mapWorld = w; window.__bloomguard.show('map'); }, w);
+for (let w = 0; w < 8; w++) await page.evaluate((w) => { window.__bloomguard.mapWorld = w; window.__bloomguard.show('map'); }, w);
+await page.evaluate(() => window.__bloomguard.show('worlds'));
+await page.waitForTimeout(200);
 await page.waitForTimeout(200);
 
 console.table(results.map(({ snap, ...r }) => r));

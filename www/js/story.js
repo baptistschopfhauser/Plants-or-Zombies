@@ -13,6 +13,8 @@ export const SPEAKERS = {
   rimefang: { name: 'Rimefang', color: '#bfe2ff', rotling: 'rimefang' },
   gloomwyrm: { name: 'Gloomwyrm', color: '#a9b0ff', rotling: 'gloomwyrm' },
   monarch: { name: 'The Rot Monarch', color: '#ff8ad8', rotling: 'monarch' },
+  galewretch: { name: 'Galewretch', color: '#bcd8ff', rotling: 'galewretch' },
+  mycelord: { name: 'The Mycelord', color: '#7affc8', rotling: 'mycelord' },
 };
 
 export const STORY = {
@@ -106,7 +108,44 @@ export const STORY = {
     ['monarch', 'No... the light... it burns...'],
     ['wren', 'The Hearthseed! It\'s warm, like holding a little sun.', '♥'],
     ['moss', 'Plant it back in Ada\'s greenhouse, and the land will heal. You did it, Wren.'],
-    ['wren', 'WE did it. Now... how about Endless Bloom? I bet there are still a few Rotlings hiding out there.'],
+    ['wren', 'WE did it! Wait... Moss, what are those purple specks drifting up into the sky?', '?'],
+    ['moss', 'Blight spores. The Monarch was not the root of the rot after all. Something older is still growing.'],
+    ['wren', 'Then we follow them. Up there, onto those floating gardens!'],
+  ],
+  'pre-36': [
+    ['wren', 'Whoa... the gardens are floating! Don\'t look down, don\'t look down...', '💧'],
+    ['moss', 'The Skyroot Gardens. Mind the cloud gaps, nothing grows on a cloud. And watch for Rotlings on kites!'],
+    ['wren', 'Rotlings. On. Kites. Of course.'],
+  ],
+  'pre-39': [
+    ['moss', 'Updrafts rise through the cloud gaps and carry Glow with them. Catch it before the wind does.'],
+  ],
+  'pre-41': [
+    ['galewretch', 'Ha-HA! Welcome aboard, groundlings! Hold on to your seeds, the forecast is ROTTEN!', '💢'],
+    ['wren', 'You\'re carrying the spores somewhere. Where?'],
+    ['galewretch', 'To the Hollow, where the Master grows! But you\'ll never get past my winds!'],
+  ],
+  'post-41': [
+    ['galewretch', 'Grounded... by a gardener... the Master... in the Hollow... will...'],
+    ['moss', 'Mushroom Hollow. Under the roots of the world. I hoped I would never see it again.'],
+    ['wren', 'You\'ve been there before?', '!'],
+    ['moss', 'Three hundred years ago. With your great-great-grandmother. We did not finish the job.'],
+  ],
+  'pre-42': [
+    ['wren', 'It\'s so dark... but the mushrooms are glowing!'],
+    ['moss', 'Tap the glowcaps to harvest their Glow. And when the spores start swirling, your guardians will slow down. Be patient.'],
+  ],
+  'pre-47': [
+    ['mycelord', 'Little gardener. I was here before your greenhouse. Before your grandmother. Before the sun learned your name.'],
+    ['mycelord', 'Every rotten leaf, every Rotling, every blight... they all grew from ME.'],
+    ['wren', 'Then this ends at the root. Moss, are you with me?'],
+    ['moss', 'Always. Light every lantern, Wren. For Ada.', '♥'],
+  ],
+  'post-47': [
+    ['mycelord', 'The light... it reaches... even here...'],
+    ['moss', 'It\'s over. The blight has no roots left. Look, the Hollow is glowing green, not purple.'],
+    ['wren', 'We finished what Grandma started. Now let\'s go home and plant something nice.', '♥'],
+    ['moss', 'And Endless Bloom, I suspect. You do enjoy it so.', '♪'],
   ],
 };
 
